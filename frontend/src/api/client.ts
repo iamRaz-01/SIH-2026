@@ -49,20 +49,51 @@ export const getStateAnalysis = () =>
 export const getAgencyAnalysis = () =>
   apiFetch<AgencyAnalysis>('/api/dashboard/sector-or-agency-analysis');
 
-// ── Prediction ─────────────────────────────────────────────────────────────────
+// ── Prediction & Explainability ────────────────────────────────────────────────
 export const predictCostOverrun = (body: PredictRequest) =>
   apiFetch<PredictionResult>('/api/predict/cost-overrun', {
     method: 'POST',
     body: JSON.stringify(body),
   });
 
+export const explainPrediction = (body: PredictRequest, topN = 6) =>
+  apiFetch<ShapExplanationResult>(`/api/predict/explain?top_n=${topN}`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+
 // ── Anomalies ──────────────────────────────────────────────────────────────────
-export const getAnomalies = (params?: { limit?: number; only_flagged?: boolean }) => {
+export const getAnomalies = (params?: {
+  limit?: number;
+  only_flagged?: boolean;
+  severity?: string;
+  state?: string;
+  agency?: string;
+  quadrant?: string;
+  page?: number;
+  page_size?: number;
+}) => {
   const qs = new URLSearchParams();
   if (params?.limit) qs.set('limit', String(params.limit));
+  if (params?.page_size) qs.set('page_size', String(params.page_size));
+  if (params?.page) qs.set('page', String(params.page));
   if (params?.only_flagged) qs.set('only_flagged', 'true');
+  if (params?.severity) qs.set('severity', params.severity);
+  if (params?.state) qs.set('state', params.state);
+  if (params?.agency) qs.set('agency', params.agency);
+  if (params?.quadrant) qs.set('quadrant', params.quadrant);
   return apiFetch<AnomaliesResponse>(`/api/anomalies?${qs}`);
 };
+
+export const getProjectAnomaly = (projectCode: string) =>
+  apiFetch<AnomalyDetail>(`/api/anomalies/${projectCode}`);
+
+// ── Risk & Benchmarking ────────────────────────────────────────────────────────
+export const getProjectRisk = (projectCode: string) =>
+  apiFetch<ProjectRiskEvaluation>(`/api/risk/${projectCode}`);
+
+export const getProjectBenchmarks = (projectCode: string) =>
+  apiFetch<ProjectBenchmarksResponse>(`/api/benchmarks/${projectCode}`);
 
 // ── Network ────────────────────────────────────────────────────────────────────
 export const getNetwork = (maxNodes = 200) =>
@@ -89,7 +120,16 @@ export interface HealthResponse {
     n_training_rows: number | null;
     error: string | null;
   };
-  anomaly_detector: { fitted: boolean; total_projects: number; flagged_count: number };
+  anomaly_detector: {
+    fitted: boolean;
+    total_projects?: number;
+    total_evaluated?: number;
+    flagged_count?: number;
+    anomalies_flagged?: number;
+    critical_count?: number;
+    high_count?: number;
+    algorithm?: string;
+  };
   project_network: { built: boolean; total_nodes: number; total_edges: number };
 }
 
@@ -110,6 +150,8 @@ export interface Project {
   cost_overrun_ratio?: number;
   expenditure_ratio?: number;
   is_overrun?: number;
+  time_overrun_months?: number;
+  project_age_months?: number;
   [key: string]: unknown;
 }
 
@@ -185,6 +227,7 @@ export interface AgencyAnalysis {
 
 export interface PredictRequest {
   project_id?: string;
+  project_code?: string;
   edition?: string;
   project_name?: string;
   agency?: string;
@@ -203,14 +246,28 @@ export interface TopFeature {
   numeric_value: number | null;
 }
 
+export interface ShapFeature {
+  feature: string;
+  label: string;
+  value: number | null;
+  shap_value: number;
+  impact: 'INCREASES_RISK' | 'DECREASES_RISK' | 'NEUTRAL';
+  magnitude: number;
+  explanation: string;
+}
+
 export interface PredictionResult {
   project_id?: string;
+  project_code?: string;
   project_name?: string;
   agency?: string;
   state?: string;
-  risk_class: 'Low' | 'Medium' | 'High' | 'Unknown';
+  risk_class?: 'Low' | 'Medium' | 'High' | 'Unknown';
+  risk_level?: string;
   probability: number | null;
+  cost_overrun_probability?: number | null;
   predicted_overrun?: boolean;
+  prediction?: string;
   confidence: 'High' | 'Medium' | 'Low';
   status: 'Scored' | 'Insufficient Data';
   top_features: TopFeature[];
@@ -218,28 +275,123 @@ export interface PredictionResult {
   optimal_threshold: number;
   model_metrics?: { roc_auc?: number; pr_auc?: number };
   missing_fields?: string[];
+  provenance?: string;
+}
+
+export interface ShapExplanationResult extends PredictionResult {
+  base_value_log_odds: number;
+  explanation_method: string;
+  summary: string;
+  top_contributing_features: ShapFeature[];
+}
+
+export interface DetectedIndicator {
+  type: string;
+  severity: string;
+  message: string;
+  metric: string;
+  value: number;
 }
 
 export interface Anomaly {
   project_id: string;
+  project_code?: string;
   project_name: string;
   agency: string;
   state: string;
   anomaly_score: number;
   anomaly_score_norm: number;
-  is_anomaly: number;
+  raw_anomaly_score?: number;
+  is_anomaly: number | boolean;
+  anomaly_status?: string;
+  severity?: string;
+  risk_quadrant?: string;
   anomaly_reason: string;
+  explanation?: string;
+  detected_indicators?: DetectedIndicator[];
+  relevant_project_metrics?: Record<string, number | null>;
+}
+
+export interface AnomalyDetail extends Anomaly {
+  feature_deviations?: Array<{
+    feature: string;
+    label: string;
+    project_value: number;
+    dataset_median: number;
+    z_score: number;
+    is_deviant: boolean;
+  }>;
 }
 
 export interface AnomaliesResponse {
   anomalies: Anomaly[];
-  total_returned: number;
-  detector_status: {
+  total_returned?: number;
+  total?: number;
+  page?: number;
+  page_size?: number;
+  total_pages?: number;
+  detector_status?: {
     fitted: boolean;
-    total_projects: number;
-    flagged_count: number;
+    total_projects?: number;
+    total_evaluated?: number;
+    flagged_count?: number;
+    anomalies_flagged?: number;
+    critical_count?: number;
+    high_count?: number;
+    algorithm?: string;
     error: string | null;
   };
+}
+
+export interface ProjectRiskEvaluation {
+  project_code: string;
+  project_id: string;
+  project_name: string;
+  agency: string;
+  state: string;
+  overall_risk: {
+    score: number;
+    level: string;
+    provenance: string;
+  };
+  model_output: {
+    prediction: string;
+    cost_overrun_probability: number | null;
+    risk_level: string;
+    confidence: string;
+    provenance: string;
+  };
+  derived_analytics: {
+    cost_risk: { score: number; level: string; cost_overrun_pct: number | null };
+    schedule_risk: { score: number; level: string; time_overrun_months: number | null };
+    implementation_indicators: { score: number; level: string; physical_progress_ratio: number | null };
+    anomaly_status: { status: string; score: number; severity: string; is_anomaly: boolean; explanation: string };
+    provenance: string;
+  };
+}
+
+export interface ProjectBenchmarksResponse {
+  project_code: string;
+  project_name: string;
+  agency: string;
+  state: string;
+  scale_bucket: string;
+  project_metrics: Record<string, number | null>;
+  benchmarks: Record<string, {
+    name: string;
+    filter_type: string;
+    filter_value: string;
+    cohort_size: number;
+    statistics: Record<string, {
+      label: string;
+      average: number | null;
+      median: number | null;
+      p25: number | null;
+      p75: number | null;
+      project_value: number | null;
+      project_percentile: number | null;
+    }>;
+  }>;
 }
 
 export interface NetworkNode {

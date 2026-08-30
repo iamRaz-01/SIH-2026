@@ -1,19 +1,19 @@
 """
+backend/config.py
+
 InfraGuard AI — Application Configuration
 Loads and validates environment variables using python-dotenv.
-All configurable paths and settings live here; no hardcoded paths elsewhere.
 """
 
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-# ── Locate and load .env relative to this file ─────────────────────────────────
-_HERE = Path(__file__).resolve().parent          # backend/
+_HERE = Path(__file__).resolve().parent  # backend/
 _ENV_FILE = _HERE / ".env"
 
 load_dotenv(dotenv_path=_ENV_FILE, override=False)
@@ -28,16 +28,27 @@ class Settings:
     debug: bool = os.getenv("DEBUG", "true").lower() == "true"
 
     # ── Paths ──────────────────────────────────────────────────────────────────
-    # Resolved relative to repo root (one level above backend/)
     _repo_root: Path = _HERE.parent
 
-    dataset_path: Path = _repo_root / os.getenv(
-        "DATASET_PATH", "ongoing_project_25_26.xlsx"
-    ).lstrip("../")
+    # Dataset candidate resolution
+    _ds_env = os.getenv("DATASET_PATH", "ongoing_project_25_26.xlsx").lstrip("../")
+    dataset_path: Path = _repo_root / _ds_env
 
-    model_path: Path = _repo_root / os.getenv(
-        "MODEL_PATH", "lightgbm_cost_overrun_model.pkl"
-    ).lstrip("../")
+    # Model candidate resolution (checks both names)
+    _model_env = os.getenv("MODEL_PATH", "lightgbm_cost_overrun_model.pkl").lstrip("../")
+    model_path: Path = _repo_root / _model_env
+
+    # If default model name doesn't exist, check for '(1)' variant or cwd
+    if not model_path.exists():
+        if (_repo_root / "lightgbm_cost_overrun_model (1).pkl").exists():
+            model_path = _repo_root / "lightgbm_cost_overrun_model (1).pkl"
+        elif Path("lightgbm_cost_overrun_model.pkl").exists():
+            model_path = Path("lightgbm_cost_overrun_model.pkl")
+
+    # If default dataset doesn't exist, check cwd
+    if not dataset_path.exists():
+        if Path("ongoing_project_25_26.xlsx").exists():
+            dataset_path = Path("ongoing_project_25_26.xlsx")
 
     # ── Server ─────────────────────────────────────────────────────────────────
     host: str = os.getenv("HOST", "0.0.0.0")

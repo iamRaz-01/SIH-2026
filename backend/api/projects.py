@@ -1,31 +1,38 @@
 """
+backend/api/projects.py
+
 InfraGuard AI — Projects API Router
 Endpoints:
-  GET  /api/projects          — paginated list with filters
-  GET  /api/projects/{id}     — single project detail
+  GET /api/projects        — Paginated project list with filters
+  GET /api/projects/{id}   — Single project detail (by project_code or project_id)
+  GET /api/projects/{id}/history — Historical edition timeline for a project
 """
 
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from services.dataset_service import get_dataset, get_project_by_id
+from services import dataset_service
 
 router = APIRouter(prefix="/api/projects", tags=["Projects"])
 
 
 def _project_to_dict(row) -> dict:
-    """Convert a pandas Series row to a JSON-serialisable dict."""
+    """Convert pandas Series row to clean JSON-serializable dictionary."""
     d = {}
     for k, v in row.items():
-        if hasattr(v, "item"):        # numpy scalar → Python scalar
+        if hasattr(v, "item"):
             v = v.item()
-        if v != v:                    # NaN check (nan != nan)
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            v = None
+        elif v != v:
             v = None
         d[k] = v
+    if "project_code" in d and d["project_code"] is not None:
+        d["project_code"] = str(d["project_code"]).replace(".0", "")
     return d
 
 
@@ -35,33 +42,34 @@ def list_projects(
     page_size: int = Query(50, ge=1, le=500),
     state: Optional[str] = Query(None),
     agency: Optional[str] = Query(None),
-    risk: Optional[str] = Query(None, description="low | medium | high"),
+    risk: Optional[str] = Query(None, description="low | medium | high | critical"),
     search: Optional[str] = Query(None, description="Project name search"),
 ):
     """
-    Return a paginated list of projects with optional filters.
-    All data comes from the real dataset.
+    Return paginated list of projects from the real dataset.
     """
-    df = get_dataset()
+    df = dataset_service.get_dataset()
 
-    # ── Apply filters ──────────────────────────────────────────────────────────
     if state:
-        df = df[df["state"].str.upper() == state.upper()]
+        df = df[df["state"].astype(str).str.upper() == state.strip().upper()]
     if agency:
-        df = df[df["agency"].str.upper() == agency.upper()]
+        df = df[df["agency"].astype(str).str.upper().str.contains(agency.strip().upper(), na=False)]
     if search:
-        mask = df["project_name"].str.contains(search, case=False, na=False)
+        mask = df["project_name"].astype(str).str.contains(search, case=False, na=False)
         df = df[mask]
     if risk and "cost_overrun_ratio" in df.columns:
-        if risk.lower() == "high":
+        r = risk.lower()
+        if r == "critical":
+            df = df[df["cost_overrun_ratio"] > 0.50]
+        elif r == "high":
             df = df[df["cost_overrun_ratio"] > 0.30]
-        elif risk.lower() == "medium":
+        elif r == "medium":
             df = df[(df["cost_overrun_ratio"] > 0.10) & (df["cost_overrun_ratio"] <= 0.30)]
-        elif risk.lower() == "low":
+        elif r == "low":
             df = df[df["cost_overrun_ratio"] <= 0.10]
 
     total = len(df)
-    total_pages = math.ceil(total / page_size)
+    total_pages = math.ceil(total / page_size) if total > 0 else 1
     start = (page - 1) * page_size
     end = start + page_size
 
@@ -78,8 +86,39 @@ def list_projects(
 
 @router.get("/{project_id}")
 def get_project(project_id: str):
-    """Return a single project by its synthetic project_id."""
-    row = get_project_by_id(project_id)
+    """
+    Return a single project record by project_code or project_id.
+    """
+    row = dataset_service.get_project_by_code(project_id)
     if row is None:
-        raise HTTPException(status_code=404, detail=f"Project {project_id!r} not found")
+        row = dataset_service.get_project_by_id(project_id)
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Project with identifier '{project_id}' not found in dataset."
+        )
     return _project_to_dict(row)
+
+
+@router.get("/{project_id}/history")
+def get_project_history(project_id: str):
+    """
+    Return all historical edition records for a given project.
+    """
+    history = dataset_service.get_project_history(project_id)
+    if not history:
+        # Check if project exists by id
+        row = dataset_service.get_project_by_id(project_id)
+        if row is not None:
+            history = [row.to_dict()]
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project '{project_id}' not found."
+            )
+
+    return {
+        "project_code": project_id,
+        "timeline_count": len(history),
+        "history": [_project_to_dict(pd.Series(rec)) for rec in history],
+    }

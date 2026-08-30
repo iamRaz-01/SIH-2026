@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { predictCostOverrun, explainPrediction, type PredictionResult, type ShapExplanationResult } from '../api/client'
-import { Brain, Send, Sparkles, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Send, Sparkles, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 
 function RiskBadge({ riskClass }: { riskClass?: string }) {
   const rc = String(riskClass || 'LOW').toUpperCase()
-  const cls =
-    rc === 'CRITICAL' || rc === 'HIGH' ? 'badge-high text-sm px-3.5 py-1' :
-    rc === 'MEDIUM' ? 'badge-medium text-sm px-3.5 py-1' :
-    'badge-low text-sm px-3.5 py-1'
-  return <span className={cls}>{rc} Risk</span>
+  if (rc === 'CRITICAL' || rc === 'HIGH') return <span className="badge-danger text-[13px] px-3.5 py-1">High Risk</span>
+  if (rc === 'MEDIUM') return <span className="badge-warning text-[13px] px-3.5 py-1">Medium Risk</span>
+  return <span className="badge-success text-[13px] px-3.5 py-1">Low Risk</span>
 }
 
 export default function PredictPage() {
@@ -69,27 +67,27 @@ export default function PredictPage() {
   const riskClass = result?.risk_level || result?.risk_class || 'LOW'
 
   return (
-    <div className="p-6 max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-100 flex items-center gap-2">
-          <Brain className="h-6 w-6 text-brand-400" />
-          LightGBM Cost-Overrun &amp; SHAP Predictor
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Scored by the trained LightGBM ML model calibrated on 48,894 records (ROC-AUC: 0.797 · Threshold: 38.7%)
+    <div className="p-6 md:p-8 space-y-6 max-w-5xl mx-auto bg-[#F8FAFC]">
+      {/* ── Header ── */}
+      <div className="border-b border-[#E2E8F0] pb-6">
+        <span className="text-[13px] font-semibold uppercase tracking-wider text-[#7C3AED]">Supervised Machine Learning</span>
+        <h1 className="text-[28px] font-bold text-[#0F172A] leading-tight tracking-tight mt-1">Cost-Overrun &amp; SHAP Predictor</h1>
+        <p className="text-[#475569] text-[14px] font-normal mt-1">
+          Inference powered by trained LightGBM ML model calibrated on 48,894 records (ROC-AUC: 0.797 · Threshold: 38.7%)
         </p>
       </div>
 
-      <form onSubmit={onSubmit} className="card space-y-5">
-        {/* Quick project code lookup */}
-        <div className="bg-gray-800/40 p-4 rounded-xl border border-gray-700/60 space-y-2">
-          <label className="text-xs font-semibold text-gray-300 uppercase tracking-wide block">
+      {/* ── Predict Form ── */}
+      <form onSubmit={onSubmit} className="card space-y-6 shadow-xs">
+        {/* Quick Project Code Lookup */}
+        <div className="bg-[#F8FAFC] p-4.5 rounded-xl border border-[#E2E8F0] space-y-2">
+          <label className="text-[14px] font-semibold text-[#2563EB] uppercase tracking-wider block">
             Option A: Quick Predict from Dataset by Project Code
           </label>
           <div className="flex gap-3">
             <input
-              placeholder="Enter Project Code (e.g. 701107, 612786, 701121)…"
-              className="input flex-1 font-mono text-sm"
+              placeholder="Enter Project Code (e.g. 701107, 612786, 701121, 602096)…"
+              className="input flex-1 text-[15px] placeholder:text-[15px]"
               value={projectCodeInput}
               onChange={e => setProjectCodeInput(e.target.value)}
             />
@@ -97,121 +95,122 @@ export default function PredictPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="h-px bg-gray-800 flex-1" />
-          <span className="text-xs text-gray-500 uppercase font-medium">OR Option B: Custom Project Features</span>
-          <div className="h-px bg-gray-800 flex-1" />
+          <div className="h-px bg-[#E2E8F0] flex-1" />
+          <span className="text-[13px] font-medium uppercase tracking-wider text-[#64748B]">OR Option B: Custom Project Features</span>
+          <div className="h-px bg-[#E2E8F0] flex-1" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Project Name</label>
-            <input name="project_name" className="input w-full" value={form.project_name} onChange={onChange} />
+            <label className="text-[14px] text-[#475569] block mb-1 font-medium">Project Name</label>
+            <input name="project_name" className="input w-full" placeholder="e.g. Dedicated Freight Corridor" value={form.project_name} onChange={onChange} />
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Agency / Ministry</label>
-            <input name="agency" className="input w-full" placeholder="e.g. NHAI, RVNL, AAI" value={form.agency} onChange={onChange} />
+            <label className="text-[14px] text-[#475569] block mb-1 font-medium">Implementing Agency / Ministry</label>
+            <input name="agency" className="input w-full" placeholder="e.g. NHAI, RVNL, AAI, CAOCWR" value={form.agency} onChange={onChange} />
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">State / UT</label>
+            <label className="text-[14px] text-[#475569] block mb-1 font-medium">State / UT</label>
             <input name="state" className="input w-full" placeholder="e.g. Maharashtra" value={form.state} onChange={onChange} />
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Edition Snapshot Date</label>
+            <label className="text-[14px] text-[#475569] block mb-1 font-medium">Edition Snapshot Date</label>
             <input name="edition" type="date" className="input w-full" value={form.edition} onChange={onChange} />
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Date of Approval (DOA)</label>
+            <label className="text-[14px] text-[#475569] block mb-1 font-medium">Date of Approval (DOA)</label>
             <input name="doa" type="date" className="input w-full" value={form.doa} onChange={onChange} />
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Original Target Completion</label>
+            <label className="text-[14px] text-[#475569] block mb-1 font-medium">Original Target Completion</label>
             <input name="original_target_doa" type="date" className="input w-full" value={form.original_target_doa} onChange={onChange} />
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Sanctioned Cost (₹ Crore)</label>
-            <input name="original_cost" type="number" step="0.01" className="input w-full" value={form.original_cost} onChange={onChange} />
+            <label className="text-[14px] text-[#475569] block mb-1 font-medium">Sanctioned Cost (₹ Crore)</label>
+            <input name="original_cost" type="number" step="0.01" className="input w-full" placeholder="e.g. 1500.00" value={form.original_cost} onChange={onChange} />
           </div>
           <div>
-            <label className="text-xs text-gray-400 block mb-1">Cumulative Expenditure (₹ Crore)</label>
-            <input name="cumulative_expenditure" type="number" step="0.01" className="input w-full" value={form.cumulative_expenditure} onChange={onChange} />
+            <label className="text-[14px] text-[#475569] block mb-1 font-medium">Cumulative Expenditure (₹ Crore)</label>
+            <input name="cumulative_expenditure" type="number" step="0.01" className="input w-full" placeholder="e.g. 1200.00" value={form.cumulative_expenditure} onChange={onChange} />
           </div>
           <div className="md:col-span-2">
-            <label className="text-xs text-gray-400 block mb-1">Physical Progress (0–100 %)</label>
-            <input name="physical_progress" type="number" step="0.1" min="0" max="100" className="input w-full" value={form.physical_progress} onChange={onChange} />
+            <label className="text-[14px] text-[#475569] block mb-1 font-medium">Physical Progress (0–100 %)</label>
+            <input name="physical_progress" type="number" step="0.1" min="0" max="100" className="input w-full" placeholder="e.g. 75.5" value={form.physical_progress} onChange={onChange} />
           </div>
         </div>
 
-        <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2 px-6">
+        <button type="submit" disabled={loading} className="btn-primary text-[14px] font-semibold py-2.5 px-6">
           <Send className="h-4 w-4" />
-          {loading ? 'Executing LightGBM pipeline…' : 'Run Real ML Prediction'}
+          {loading ? 'Executing LightGBM Pipeline…' : 'Run Real ML Prediction'}
         </button>
       </form>
 
       {error && (
-        <div className="bg-red-950/50 border border-red-800 rounded-xl p-4 text-red-400 text-sm">
+        <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-2xl p-4 text-[#B91C1C] text-[14px]">
           {error}
         </div>
       )}
 
+      {/* ── Prediction Result & SHAP Section ── */}
       {result && (
-        <div className="card space-y-6 border-brand-500/30">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-800 pb-4">
+        <div className="card space-y-6 border-[#BFDBFE]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-4">
             <div>
               <div className="flex items-center gap-3">
                 <RiskBadge riskClass={riskClass} />
-                <span className="text-xs font-mono text-gray-400">
-                  Decision: <strong className="text-gray-200">{result.prediction || (result.predicted_overrun ? 'LIKELY COST OVERRUN' : 'NORMAL')}</strong>
+                <span className="text-[13px] font-medium text-[#475569]">
+                  Decision: <strong className="text-[#0F172A]">{result.prediction || (result.predicted_overrun ? 'LIKELY COST OVERRUN' : 'NORMAL')}</strong>
                 </span>
               </div>
-              <p className="text-lg font-bold text-gray-100 mt-2">
+              <p className="text-[20px] font-bold text-[#0F172A] mt-2">
                 {result.project_name || `Project Code ${result.project_code || result.project_id}`}
               </p>
-              <p className="text-xs text-gray-500">{result.agency} · {result.state}</p>
+              <p className="text-[13px] text-[#475569] font-normal">{result.agency} · {result.state}</p>
             </div>
 
-            <div className="text-right shrink-0 bg-gray-800/60 p-3.5 rounded-xl border border-gray-700">
-              <p className="text-xs text-gray-400 uppercase font-medium">Cost Overrun Probability</p>
-              <p className="text-3xl font-bold text-gray-100 mt-0.5">
+            <div className="text-right shrink-0 bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0]">
+              <p className="text-[13px] font-medium uppercase tracking-wider text-[#64748B]">Overrun Probability</p>
+              <p className="text-[32px] font-bold text-[#0F172A] leading-none mt-0.5">
                 {prob !== null && prob !== undefined ? `${(prob * 100).toFixed(1)}%` : 'N/A'}
               </p>
-              <p className="text-[11px] text-gray-500">Threshold: {((result.optimal_threshold ?? 0.387) * 100).toFixed(1)}%</p>
+              <p className="text-[12px] text-[#64748B] font-normal mt-1">Threshold: {((result.optimal_threshold ?? 0.387) * 100).toFixed(1)}%</p>
             </div>
           </div>
 
-          {/* Model info banner */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-800/40 p-3 rounded-lg text-xs">
+          {/* Model telemetry banner */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#F8FAFC] p-3.5 rounded-xl border border-[#E2E8F0] text-[13px]">
             <div>
-              <span className="text-gray-500 block">Engine</span>
-              <span className="text-gray-200 font-semibold">{result.model_type || 'LightGBM'}</span>
+              <span className="text-[#64748B] block text-[11px] uppercase font-semibold">Engine</span>
+              <span className="text-[#0F172A] font-semibold">{result.model_type || 'LightGBM'}</span>
             </div>
             <div>
-              <span className="text-gray-500 block">Confidence</span>
-              <span className="text-gray-200 font-semibold">{result.confidence}</span>
+              <span className="text-[#64748B] block text-[11px] uppercase font-semibold">Confidence</span>
+              <span className="text-[#0F172A] font-semibold">{result.confidence}</span>
             </div>
             <div>
-              <span className="text-gray-500 block">Validation ROC-AUC</span>
-              <span className="text-gray-200 font-semibold">{result.model_metrics?.roc_auc?.toFixed(3) ?? '0.797'}</span>
+              <span className="text-[#64748B] block text-[11px] uppercase font-semibold">Validation ROC-AUC</span>
+              <span className="text-[#0F172A] font-semibold">{result.model_metrics?.roc_auc?.toFixed(3) ?? '0.797'}</span>
             </div>
             <div>
-              <span className="text-gray-500 block">Provenance</span>
-              <span className="text-brand-400 font-mono font-semibold">MODEL_OUTPUT</span>
+              <span className="text-[#64748B] block text-[11px] uppercase font-semibold">Provenance</span>
+              <span className="text-[#2563EB] font-semibold">MODEL_OUTPUT</span>
             </div>
           </div>
 
-          {/* Tree SHAP Explainability Section */}
+          {/* Tree SHAP Explainability Breakdown */}
           {shapResult && shapResult.top_contributing_features && (
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-200 flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4 text-brand-400" />
+                <h3 className="text-[18px] font-semibold text-[#0F172A] flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-[#7C3AED]" />
                   Exact Tree SHAP Feature Attributions
                 </h3>
-                <span className="text-[11px] text-gray-500 font-mono">
+                <span className="text-[12px] text-[#64748B] font-normal">
                   Base Log-Odds: {shapResult.base_value_log_odds?.toFixed(3)}
                 </span>
               </div>
 
-              <p className="text-xs text-gray-400 bg-brand-950/20 border border-brand-900/40 p-3 rounded-lg">
+              <p className="text-[14px] text-[#334155] bg-[#F8FAFC] border border-[#E2E8F0] p-3.5 rounded-xl leading-relaxed font-normal">
                 {shapResult.summary}
               </p>
 
@@ -221,27 +220,27 @@ export default function PredictPage() {
                   return (
                     <div
                       key={idx}
-                      className="bg-gray-800/50 rounded-xl p-3 border border-gray-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                      className="bg-[#F8FAFC] rounded-xl p-3.5 border border-[#E2E8F0] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[13px]"
                     >
                       <div className="flex items-start gap-2.5 flex-1">
                         {isRiskInc ? (
-                          <ArrowUpRight className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                          <ArrowUpRight className="h-4.5 w-4.5 text-[#DC2626] shrink-0 mt-0.5" />
                         ) : (
-                          <ArrowDownRight className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                          <ArrowDownRight className="h-4.5 w-4.5 text-[#16A34A] shrink-0 mt-0.5" />
                         )}
                         <div>
-                          <p className="font-semibold text-gray-200">{f.label}</p>
-                          <p className="text-gray-400 text-[11px] mt-0.5">{f.explanation}</p>
+                          <p className="font-semibold text-[#0F172A] text-[14px]">{f.label}</p>
+                          <p className="text-[#475569] text-[13px] font-normal mt-0.5">{f.explanation}</p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                        <span className="text-gray-400 font-mono">
+                        <span className="text-[#64748B] font-normal text-[12px]">
                           val: {f.value != null ? f.value : '—'}
                         </span>
                         <span
-                          className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
-                            isRiskInc ? 'bg-red-950 text-red-300 border border-red-800' : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                          className={`font-semibold px-2.5 py-1 rounded-md text-[12px] ${
+                            isRiskInc ? 'badge-danger' : 'badge-success'
                           }`}
                         >
                           {f.shap_value > 0 ? `+${f.shap_value.toFixed(3)}` : f.shap_value.toFixed(3)} SHAP

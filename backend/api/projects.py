@@ -51,9 +51,9 @@ def list_projects(
     df = dataset_service.get_dataset()
 
     if state:
-        df = df[df["state"].astype(str).str.upper() == state.strip().upper()]
+        df = df[df["state"].astype(str).str.contains(state.strip(), case=False, regex=False, na=False)]
     if agency:
-        df = df[df["agency"].astype(str).str.upper().str.contains(agency.strip().upper(), na=False)]
+        df = df[df["agency"].astype(str).str.contains(agency.strip(), case=False, regex=False, na=False)]
     if search:
         mask = df["project_name"].astype(str).str.contains(search, case=False, na=False)
         df = df[mask]

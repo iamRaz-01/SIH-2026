@@ -9,12 +9,6 @@ const SEVERITY_ICON: Record<string, React.ElementType> = {
   Informational: Info,
 }
 
-const SEVERITY_STYLE: Record<string, string> = {
-  High: 'border-red-800 bg-red-950/30 text-red-400',
-  Medium: 'border-amber-800 bg-amber-950/30 text-amber-400',
-  Informational: 'border-blue-800 bg-blue-950/30 text-blue-400',
-}
-
 export default function AlertsPage() {
   const [data, setData] = useState<AlertsResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -28,62 +22,73 @@ export default function AlertsPage() {
   }, [])
 
   return (
-    <div className="p-6 space-y-5 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-100 flex items-center gap-2">
-          <Bell className="h-6 w-6 text-red-400" />
+    <div className="p-6 md:p-8 space-y-6 max-w-4xl mx-auto bg-[#F8FAFC]">
+      <div className="border-b border-[#E2E8F0] pb-6">
+        <span className="text-[13px] font-semibold uppercase tracking-wider text-[#DC2626]">Portfolio Surveillance</span>
+        <h1 className="text-[28px] font-bold text-[#0F172A] leading-tight tracking-tight mt-1 flex items-center gap-2.5">
+          <Bell className="h-6 w-6 text-[#DC2626]" />
           Early-Warning Alerts
         </h1>
-        <p className="text-gray-500 text-sm mt-1">
+        <p className="text-[#475569] text-[14px] font-normal mt-1">
           Top-priority alerts derived directly from central infrastructure portfolio conditions
         </p>
       </div>
 
       {error && (
-        <div className="bg-red-950/50 border border-red-800 rounded-xl p-4 text-red-400 text-sm">{error}</div>
+        <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 text-[#B91C1C] text-[14px]">{error}</div>
       )}
 
       {loading && (
-        <div className="flex items-center justify-center h-48">
-          <div className="animate-spin h-8 w-8 border-4 border-red-500 border-t-transparent rounded-full" />
+        <div className="flex items-center justify-center h-48 text-[#64748B] text-[14px] gap-2">
+          <div className="animate-spin h-6 w-6 border-2 border-[#2563EB] border-t-transparent rounded-full" />
+          Loading alerts…
         </div>
       )}
 
       {!loading && (
         <div className="space-y-3">
           {data?.alerts.map((alert: Alert, i) => {
+            const isHigh = alert.severity?.toLowerCase() === 'high' || alert.severity?.toLowerCase() === 'critical'
+            const isMedium = alert.severity?.toLowerCase() === 'medium'
             const Icon = SEVERITY_ICON[alert.severity] ?? AlertTriangle
-            const style = SEVERITY_STYLE[alert.severity] ?? 'border-gray-700 bg-gray-800/30 text-gray-400'
+
             return (
-              <div key={i} className={`border rounded-xl px-5 py-4 ${style}`}>
-                <div className="flex items-start gap-3">
-                  <Icon className="h-5 w-5 mt-0.5 shrink-0" />
+              <div
+                key={i}
+                className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl px-5 py-4 shadow-2xs hover:border-[#CBD5E1] transition border-l-4"
+                style={{
+                  borderLeftColor: isHigh ? '#DC2626' : isMedium ? '#F59E0B' : '#2563EB'
+                }}
+              >
+                <div className="flex items-start gap-3.5">
+                  <Icon className={`h-5 w-5 mt-0.5 shrink-0 ${
+                    isHigh ? 'text-[#DC2626]' : isMedium ? 'text-[#D97706]' : 'text-[#2563EB]'
+                  }`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold uppercase tracking-wide">
+                      <span className="text-[13px] font-semibold text-[#0F172A] uppercase tracking-wide">
                         {alert.title}
                       </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        alert.severity === 'High' ? 'bg-red-900 text-red-300' :
-                        alert.severity === 'Medium' ? 'bg-amber-900 text-amber-300' : 'bg-blue-900 text-blue-300'
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                        isHigh ? 'badge-danger' : isMedium ? 'badge-warning' : 'badge-primary'
                       }`}>
                         {alert.severity}
                       </span>
                     </div>
-                    <p className="font-semibold text-gray-100 mt-1 line-clamp-2">
+                    <p className="font-semibold text-[#0F172A] text-[15px] mt-1 line-clamp-2">
                       {alert.project_name}
                     </p>
-                    <p className="text-xs opacity-70 mt-0.5">
+                    <p className="text-[12px] text-[#64748B] mt-0.5 font-normal">
                       {alert.agency} · {alert.state} · Code: {alert.project_code}
                     </p>
-                    <p className="text-sm mt-2 text-gray-200">{alert.message}</p>
-                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-800/50 text-xs">
-                      <span className="font-mono text-gray-300">
-                        {alert.metric_responsible}: <strong>{alert.metric_value}</strong>
+                    <p className="text-[14px] mt-2 text-[#334155] font-normal leading-relaxed">{alert.message}</p>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#EDF2F7] text-[12px]">
+                      <span className="text-[#64748B]">
+                        {alert.metric_responsible}: <strong className="text-[#0F172A]">{alert.metric_value}</strong>
                       </span>
                       {alert.project_id && (
-                        <Link to={`/projects/${alert.project_id}`} className="text-brand-400 font-medium flex items-center gap-1">
-                          View Project <ExternalLink className="h-3 w-3" />
+                        <Link to={`/projects/${alert.project_id}`} className="text-[#2563EB] hover:text-[#1D4ED8] font-medium flex items-center gap-1">
+                          View Project <ExternalLink className="h-3.5 w-3.5" />
                         </Link>
                       )}
                     </div>
@@ -93,7 +98,7 @@ export default function AlertsPage() {
             )
           })}
           {!data?.alerts.length && !loading && (
-            <div className="card text-center text-gray-500 py-12">
+            <div className="card text-center text-[#64748B] py-12 text-[14px]">
               No active alerts.
             </div>
           )}

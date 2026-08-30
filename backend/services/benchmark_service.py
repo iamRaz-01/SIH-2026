@@ -49,7 +49,7 @@ def get_project_benchmarks(project_code_or_id: Union[str, int]) -> Optional[dict
     """
     Compute comparative benchmark statistics for a project against real dataset cohorts.
     """
-    df = dataset_service.get_dataset()
+    df = dataset_service.get_latest_dataset()
     if df is None or df.empty:
         return None
 

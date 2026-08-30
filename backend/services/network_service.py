@@ -35,6 +35,12 @@ def build_network(df: pd.DataFrame, sample_size: int = 400) -> None:
             _network_error = "Empty dataset"
             return
 
+        if "project_code_str" in df.columns and df["project_code_str"].duplicated().any():
+            if "edition_dt" in df.columns:
+                df = df.sort_values("edition_dt").groupby("project_code_str", as_index=False).last()
+            else:
+                df = df.groupby("project_code_str", as_index=False).last()
+
         # Choose diverse projects across states, agencies, and high-impact works
         # Sort by cost or take first N unique projects
         sample_df = df.head(sample_size).copy()

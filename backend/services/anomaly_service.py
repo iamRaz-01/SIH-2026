@@ -50,7 +50,7 @@ _fit_error: Optional[str] = None
 
 def fit_anomaly_model(df: pd.DataFrame, contamination: float = 0.05) -> None:
     """
-    Fit Isolation Forest on the project records in the dataset.
+    Fit Isolation Forest on all project records in the dataset.
     """
     global _anomaly_model, _scaler, _anomaly_df, _feature_medians, _feature_stds, _fit_error
 

@@ -47,9 +47,9 @@ def list_projects(
     search: Optional[str] = Query(None, description="Project name search"),
 ):
     """
-    Return paginated list of unique projects from the real dataset with latest live progress.
+    Return paginated list of all project records from the real dataset with latest live progress.
     """
-    df = dataset_service.get_latest_dataset()
+    df = dataset_service.get_dataset()
 
     if state:
         df = df[df["state"].astype(str).str.contains(state.strip(), case=False, regex=False, na=False)]

@@ -132,9 +132,9 @@ def explain_cost_overrun_prediction(req: PredictRequest, top_n: int = Query(6, g
 @router.post("/batch")
 def batch_predict(limit: int = Query(50, ge=1, le=500)):
     """
-    Run predictions on the first N projects from the real dataset.
+    Run predictions on the first N unique projects from the real dataset.
     """
-    df = dataset_service.get_dataset()
+    df = dataset_service.get_latest_dataset()
     results = []
     errors = []
 

@@ -258,7 +258,11 @@ def load_dataset(path: Union[Path, str]) -> pd.DataFrame:
     df = _coerce_numeric(df)
     df = _derive_features(df)
 
-    df = df.reset_index(drop=True)
+    if "edition" in df.columns:
+        df["edition_dt"] = pd.to_datetime(df["edition"], errors="coerce")
+        df = df.sort_values("edition_dt", ascending=False).reset_index(drop=True)
+    else:
+        df = df.reset_index(drop=True)
     df.index.name = "row_index"
 
     _df_cache = df

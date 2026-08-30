@@ -97,6 +97,7 @@ _NUMERIC_COLS = [
 ]
 
 _df_cache: Optional[pd.DataFrame] = None
+_latest_df_cache: Optional[pd.DataFrame] = None
 _load_error: Optional[str] = None
 _dataset_path_used: Optional[str] = None
 
@@ -261,20 +262,49 @@ def load_dataset(path: Union[Path, str]) -> pd.DataFrame:
     df.index.name = "row_index"
 
     _df_cache = df
+    if "edition_dt" in df.columns:
+        _latest_df_cache = (
+            df.sort_values("edition_dt")
+            .groupby("project_code_str", as_index=False)
+            .last()
+            .reset_index(drop=True)
+        )
+    else:
+        _latest_df_cache = df.groupby("project_code_str", as_index=False).last().reset_index(drop=True)
+
     _load_error = None
     _dataset_path_used = str(dataset_path)
     logger.info(
-        "Dataset loaded successfully: %d records, %d columns from %s",
-        len(df), len(df.columns), dataset_path
+        "Dataset loaded successfully: %d records, %d columns from %s (unique projects: %d)",
+        len(df), len(df.columns), dataset_path, len(_latest_df_cache)
     )
     return df
 
 
 def get_dataset() -> pd.DataFrame:
-    """Return the cached dataset. Raises RuntimeError if not loaded."""
+    """Return the cached multi-edition dataset. Raises RuntimeError if not loaded."""
     if _df_cache is None:
         raise RuntimeError("Dataset not yet loaded. Call load_dataset() first.")
     return _df_cache
+
+
+def get_latest_dataset() -> pd.DataFrame:
+    """
+    Return the deduplicated dataset containing the latest/most recent monitoring edition
+    snapshot for every unique project in the registry.
+    """
+    if _latest_df_cache is not None:
+        return _latest_df_cache
+    if _df_cache is not None:
+        if "edition_dt" in _df_cache.columns:
+            return (
+                _df_cache.sort_values("edition_dt")
+                .groupby("project_code_str", as_index=False)
+                .last()
+                .reset_index(drop=True)
+            )
+        return _df_cache.groupby("project_code_str", as_index=False).last().reset_index(drop=True)
+    raise RuntimeError("Dataset not yet loaded. Call load_dataset() first.")
 
 
 def dataset_status() -> dict:
@@ -291,7 +321,7 @@ def dataset_status() -> dict:
 
 def get_project_by_id(project_id: str) -> Optional[pd.Series]:
     """
-    Look up a project row by synthetic project_id or project_code.
+    Look up the latest active record for a project row by synthetic project_id or project_code.
     """
     if _df_cache is None:
         return None
@@ -299,7 +329,9 @@ def get_project_by_id(project_id: str) -> Optional[pd.Series]:
     if matches.empty:
         # Fallback to project_code lookup
         return get_project_by_code(project_id)
-    return matches.iloc[0]
+    if "edition_dt" in matches.columns:
+        matches = matches.sort_values("edition_dt")
+    return matches.iloc[-1]
 
 
 def get_project_by_code(project_code: Union[str, int]) -> Optional[pd.Series]:
@@ -314,8 +346,12 @@ def get_project_by_code(project_code: Union[str, int]) -> Optional[pd.Series]:
         # Fallback: check if project_id was passed
         id_matches = _df_cache[_df_cache["project_id"] == str(project_code)]
         if not id_matches.empty:
-            return id_matches.iloc[0]
+            if "edition_dt" in id_matches.columns:
+                id_matches = id_matches.sort_values("edition_dt")
+            return id_matches.iloc[-1]
         return None
+    if "edition_dt" in matches.columns:
+        matches = matches.sort_values("edition_dt")
     # Return the latest edition row for this project code
     return matches.iloc[-1]
 
@@ -330,4 +366,6 @@ def get_project_history(project_code: Union[str, int]) -> list[dict]:
     matches = _df_cache[_df_cache["project_code_str"] == code_str]
     if matches.empty:
         return []
+    if "edition_dt" in matches.columns:
+        matches = matches.sort_values("edition_dt")
     return matches.to_dict(orient="records")

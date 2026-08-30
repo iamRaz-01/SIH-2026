@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getProjects, getStateAnalysis, type Project, type ProjectsResponse } from '../api/client'
 import { useWatchlist } from '../context/WatchlistContext'
+import ProjectHistoryModal from '../components/ProjectHistoryModal'
 import {
   Search, ChevronLeft, ChevronRight, ExternalLink, Star,
-  LayoutGrid, List,
+  LayoutGrid, List, History,
 } from 'lucide-react'
 
 function RiskBadge({ ratio }: { ratio?: number | null }) {
@@ -26,6 +27,7 @@ export default function ProjectsPage() {
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
   const [stateList, setStateList] = useState<string[]>([])
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
 
   const { isWatched, toggleWatch, watchedItems } = useWatchlist()
 
@@ -243,19 +245,31 @@ export default function ProjectsPage() {
                       <td className="px-4 py-3.5 text-right text-[#334155] font-normal">
                         {p.revised_cost != null ? `₹${Number(p.revised_cost).toFixed(1)} Cr` : '—'}
                       </td>
-                      <td className="px-4 py-3.5 text-right font-medium text-[#0F172A]">
-                        {p.physical_progress != null ? `${Number(p.physical_progress).toFixed(0)}%` : '—'}
+                      <td className="px-4 py-3.5 text-right font-medium text-[#15803D]">
+                        {p.physical_progress != null
+                          ? `${Number(p.physical_progress) % 1 === 0 ? Number(p.physical_progress).toFixed(0) : Number(p.physical_progress).toFixed(1)}%`
+                          : '—'}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <RiskBadge ratio={cov} />
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <Link
-                          to={`/projects/${p.project_id}`}
-                          className="text-[#2563EB] hover:text-[#1D4ED8] p-1 inline-block"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setSelectedHistoryId(p.project_code || p.project_id)}
+                            className="text-[#64748B] hover:text-[#2563EB] p-1 inline-block transition"
+                            title="Analyse History"
+                          >
+                            <History className="h-4 w-4" />
+                          </button>
+                          <Link
+                            to={`/projects/${p.project_id}`}
+                            className="text-[#2563EB] hover:text-[#1D4ED8] p-1 inline-block"
+                            title="View Project Details"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -326,17 +340,25 @@ export default function ProjectsPage() {
                   <div>
                     <span className="text-[11px] text-[#64748B] uppercase font-semibold">Progress</span>
                     <p className="font-semibold text-[#15803D] mt-0.5">
-                      {p.physical_progress != null ? `${Number(p.physical_progress).toFixed(0)}%` : '—'}
+                      {p.physical_progress != null
+                        ? `${Number(p.physical_progress) % 1 === 0 ? Number(p.physical_progress).toFixed(0) : Number(p.physical_progress).toFixed(1)}%`
+                        : '—'}
                     </p>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-[#EDF2F7] flex items-center justify-end">
+                <div className="pt-2 border-t border-[#EDF2F7] flex items-center justify-between">
+                  <button
+                    onClick={() => setSelectedHistoryId(p.project_code || p.project_id)}
+                    className="text-[12px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1"
+                  >
+                    <History className="h-3.5 w-3.5" /> History
+                  </button>
                   <Link
                     to={`/projects/${p.project_id}`}
-                    className="text-[13px] text-[#2563EB] hover:text-[#1D4ED8] font-medium flex items-center gap-1"
+                    className="text-[13px] text-[#475569] hover:text-[#0F172A] font-medium flex items-center gap-1"
                   >
-                    View Project <ExternalLink className="h-3.5 w-3.5" />
+                    Details <ExternalLink className="h-3.5 w-3.5" />
                   </Link>
                 </div>
               </div>
@@ -370,6 +392,13 @@ export default function ProjectsPage() {
           </div>
         </div>
       )}
+
+      {/* ── Project History Analysis Modal ── */}
+      <ProjectHistoryModal
+        projectId={selectedHistoryId || ''}
+        isOpen={!!selectedHistoryId}
+        onClose={() => setSelectedHistoryId(null)}
+      />
     </div>
   )
 }

@@ -36,6 +36,9 @@ export const getProjects = (params?: ProjectsParams) => {
 export const getProject = (id: string) =>
   apiFetch<Project>(`/api/projects/${id}`);
 
+export const getProjectHistory = (id: string) =>
+  apiFetch<ProjectHistoryResponse>(`/api/projects/${id}/history`);
+
 // ── Dashboard ──────────────────────────────────────────────────────────────────
 export const getDashboardSummary = () =>
   apiFetch<DashboardSummary>('/api/dashboard/summary');
@@ -92,6 +95,9 @@ export const getProjectAnomaly = (projectCode: string) =>
 // ── Risk & Benchmarking ────────────────────────────────────────────────────────
 export const getProjectRisk = (projectCode: string) =>
   apiFetch<ProjectRiskEvaluation>(`/api/risk/${projectCode}`);
+
+export const getPortfolioRiskIntelligence = () =>
+  apiFetch<PortfolioRiskIntelligenceResponse>('/api/risk/portfolio-intelligence');
 
 export const getProjectBenchmarks = (projectCode: string) =>
   apiFetch<ProjectBenchmarksResponse>(`/api/benchmarks/${projectCode}`);
@@ -477,4 +483,117 @@ export interface Alert {
 export interface AlertsResponse {
   alerts: Alert[];
   total: number;
+}
+
+export interface RiskScatterPoint {
+  project_id: string;
+  project_code: string;
+  project_name: string;
+  project_value: number;
+  risk_pct: number;
+  cost_overrun_pct: number | null;
+  time_overrun_months: number | null;
+  physical_progress: number | null;
+  risk_class: 'High' | 'Medium' | 'Low';
+  agency: string;
+  state: string;
+  is_anomaly: boolean;
+}
+
+export interface CostDriver {
+  feature: string;
+  label: string;
+  importance: number;
+  raw_gain?: number;
+}
+
+export interface SectorRiskItem {
+  sector: string;
+  risk_pct: number;
+  total_projects: number;
+  high_risk_projects: number;
+  avg_cost_overrun_pct: number;
+}
+
+export interface InterventionPriorityItem {
+  rank: number;
+  project_id: string;
+  project_code: string;
+  project_name: string;
+  agency: string;
+  state: string;
+  project_value: number;
+  risk_pct: number;
+  cost_overrun_pct: number;
+  time_overrun_months: number | null;
+  physical_progress: number;
+  is_anomaly: boolean;
+  anomaly_status: string;
+  priority_level: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  priority_score?: number;
+}
+
+export interface PortfolioRiskIntelligenceResponse {
+  summary: {
+    high_risk_projects: number;
+    high_risk_percentage: number;
+    predicted_cost_exposure: number;
+    schedule_risk_percentage: number;
+    portfolio_risk_indicator: number;
+  };
+  scatter_points: RiskScatterPoint[];
+  cost_drivers: CostDriver[];
+  sector_risk: SectorRiskItem[];
+  intervention_priorities: InterventionPriorityItem[];
+}
+
+export interface ProjectHistoryRecord {
+  edition?: string;
+  edition_date?: string;
+  edition_label?: string;
+  original_cost: number | null;
+  revised_cost: number | null;
+  cumulative_expenditure: number | null;
+  physical_progress: number | null;
+  cost_overrun_pct: number | null;
+  time_overrun_months: number | null;
+  original_target_doa?: string | null;
+  revised_completion?: string | null;
+  is_anomaly?: number | boolean;
+  cost_growth?: number | null;
+  expenditure_ratio?: number | null;
+}
+
+export interface HistoryMilestone {
+  date: string;
+  type: 'COST_REVISION' | 'TARGET_EXTENSION' | 'PROGRESS_SURGE' | string;
+  title: string;
+  detail: string;
+}
+
+export interface ProjectHistoryResponse {
+  project_code: string;
+  project_id: string;
+  project_name: string;
+  agency: string;
+  state: string;
+  timeline_count: number;
+  has_history: boolean;
+  summary: {
+    first_edition: string | null;
+    latest_edition: string | null;
+    initial_cost: number;
+    latest_cost: number;
+    cost_growth_cr: number;
+    cost_growth_pct: number;
+    initial_progress: number;
+    latest_progress: number;
+    progress_gain_pp: number;
+    initial_expenditure: number;
+    latest_expenditure: number;
+    expenditure_growth_cr: number;
+    progress_velocity_monthly_pp: number;
+  };
+  milestones: HistoryMilestone[];
+  history: ProjectHistoryRecord[];
 }

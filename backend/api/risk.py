@@ -3,6 +3,7 @@ backend/api/risk.py
 
 InfraGuard AI — Risk Engine API Router
 Endpoints:
+  GET  /api/risk/portfolio-intelligence — Portfolio-wide risk analytics, scatter data & drivers
   GET  /api/risk/{project_code} — Evaluates unified risk for a project in dataset
   POST /api/risk/evaluate       — Evaluates unified risk for arbitrary project payload
 """
@@ -12,7 +13,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from services import dataset_service, risk_service
 
@@ -33,6 +34,19 @@ class RiskEvaluateRequest(BaseModel):
     revised_cost: Optional[float] = None
     cumulative_expenditure: Optional[float] = None
     physical_progress: Optional[float] = None
+
+
+@router.get("/portfolio-intelligence")
+def get_portfolio_risk_intelligence():
+    """
+    Get comprehensive portfolio-level risk intelligence:
+    - High-risk KPIs & predicted financial cost exposure
+    - Project Value vs Risk scatter plot data points
+    - Trained LightGBM model global cost drivers (feature importance)
+    - Sector risk comparison breakdown
+    - Top Intervention priority projects
+    """
+    return risk_service.get_portfolio_risk_intelligence()
 
 
 @router.get("/{project_code}")

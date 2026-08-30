@@ -8,6 +8,7 @@ import {
   Brain,
   Activity,
   ShieldCheck,
+  ShieldAlert,
   Bell,
   X,
   ExternalLink,
@@ -24,10 +25,11 @@ import WatchlistDrawer from './WatchlistDrawer'
 const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/projects',  icon: FolderOpen,      label: 'Projects' },
-  { to: '/predict',   icon: Brain,            label: 'Risk Predictor' },
-  { to: '/anomalies', icon: AlertTriangle,    label: 'Anomalies' },
-  { to: '/network',   icon: Network,          label: 'Project Network' },
-  { to: '/health',    icon: Activity,         label: 'System Health' },
+  { to: '/risk',      icon: ShieldAlert,     label: 'Risk Intelligence' },
+  { to: '/predict',   icon: Brain,           label: 'Risk Predictor' },
+  { to: '/anomalies', icon: AlertTriangle,   label: 'Anomalies' },
+  { to: '/network',   icon: Network,         label: 'Project Network' },
+  { to: '/health',    icon: Activity,        label: 'System Health' },
 ]
 
 export default function Layout() {
@@ -89,6 +91,7 @@ export default function Layout() {
     const path = location.pathname
     if (path.includes('/projects/')) return 'Project Intelligence Detail'
     if (path.includes('/projects')) return 'Infrastructure Projects'
+    if (path.includes('/risk')) return 'Risk Intelligence'
     if (path.includes('/anomalies')) return 'Anomalies'
     if (path.includes('/network')) return 'Project Network'
     if (path.includes('/predict')) return 'Cost Overrun Predictor'

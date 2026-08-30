@@ -13,9 +13,10 @@ import {
   type AnomalyDetail,
 } from '../api/client'
 import { useWatchlist } from '../context/WatchlistContext'
+import ProjectHistoryModal from '../components/ProjectHistoryModal'
 import {
   ArrowLeft, Brain, Sparkles, Zap, AlertTriangle,
-  ShieldCheck, Star, Calendar,
+  ShieldCheck, Star, Calendar, History,
 } from 'lucide-react'
 
 function RiskBadge({ riskClass }: { riskClass?: string }) {
@@ -32,6 +33,7 @@ export default function ProjectDetailPage() {
   const [shapResult, setShapResult] = useState<ShapExplanationResult | null>(null)
   const [benchmarks, setBenchmarks] = useState<ProjectBenchmarksResponse | null>(null)
   const [anomaly, setAnomaly] = useState<AnomalyDetail | null>(null)
+  const [openHistory, setOpenHistory] = useState(false)
 
   const [loadingProject, setLoadingProject] = useState(true)
   const [loadingPred, setLoadingPred] = useState(false)
@@ -108,27 +110,36 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-6xl mx-auto bg-[#F8FAFC]">
-      {/* Breadcrumb Navigation */}
-      <div className="flex items-center justify-between">
+      {/* Breadcrumb Navigation & Action Row */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <Link to="/projects" className="text-[14px] text-[#2563EB] hover:text-[#1D4ED8] font-medium flex items-center gap-1.5 transition">
           <ArrowLeft className="h-4 w-4" /> Back to All Projects
         </Link>
-        <button
-          onClick={() => toggleWatch({
-            project_id: pId,
-            project_code: project.project_code,
-            project_name: project.project_name,
-            agency: project.agency,
-            state: project.state,
-            cost_overrun_pct: overrunRatio != null ? overrunRatio * 100 : null,
-          })}
-          className={`btn-secondary text-[13px] py-1.5 px-3 flex items-center gap-1.5 ${
-            watched ? 'border-[#FDE68A] text-[#B45309] bg-[#FFFBEB]' : ''
-          }`}
-        >
-          <Star className={`h-4 w-4 ${watched ? 'fill-[#F59E0B] text-[#F59E0B]' : ''}`} />
-          {watched ? 'Pinned in Watchlist' : 'Pin to Watchlist'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setOpenHistory(true)}
+            className="btn-primary text-[13px] py-1.5 px-3.5 flex items-center gap-1.5 shadow-xs"
+          >
+            <History className="h-4 w-4" />
+            Analyse History
+          </button>
+          <button
+            onClick={() => toggleWatch({
+              project_id: pId,
+              project_code: project.project_code,
+              project_name: project.project_name,
+              agency: project.agency,
+              state: project.state,
+              cost_overrun_pct: overrunRatio != null ? overrunRatio * 100 : null,
+            })}
+            className={`btn-secondary text-[13px] py-1.5 px-3 flex items-center gap-1.5 ${
+              watched ? 'border-[#FDE68A] text-[#B45309] bg-[#FFFBEB]' : ''
+            }`}
+          >
+            <Star className={`h-4 w-4 ${watched ? 'fill-[#F59E0B] text-[#F59E0B]' : ''}`} />
+            {watched ? 'Pinned in Watchlist' : 'Pin to Watchlist'}
+          </button>
+        </div>
       </div>
 
       {/* ── Project Master Header Card ── */}
@@ -365,6 +376,13 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ── Historical Progression Analysis Modal ── */}
+      <ProjectHistoryModal
+        projectId={String(project.project_code || project.project_id || projectId)}
+        isOpen={openHistory}
+        onClose={() => setOpenHistory(false)}
+      />
     </div>
   )
 }

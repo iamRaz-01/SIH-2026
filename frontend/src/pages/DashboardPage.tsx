@@ -14,15 +14,19 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import {
-  Building2, TrendingUp, AlertCircle, CheckCircle2,
-  IndianRupee, MapPin, Landmark, Activity,
+  Building2, TrendingUp, AlertTriangle, CheckCircle2,
+  Clock, AlertCircle,
 } from 'lucide-react'
 
 const RISK_COLORS: Record<string, string> = {
-  'Low (0-10%)':      '#22c55e',
-  'Medium (10-30%)':  '#f59e0b',
-  'High (>30%)':      '#ef4444',
-  'Under Budget':     '#3b82f6',
+  'High Risk (>30%)':     '#ef4444',
+  'Medium Risk (10-30%)': '#f59e0b',
+  'Low Risk (0-10%)':     '#22c55e',
+  'Under Budget (<0%)':   '#3b82f6',
+  'High (>30%)':          '#ef4444',
+  'Medium (10-30%)':      '#f59e0b',
+  'Low (0-10%)':          '#22c55e',
+  'Under Budget':         '#3b82f6',
 }
 
 function StatCard({
@@ -35,14 +39,14 @@ function StatCard({
   color?: string
 }) {
   return (
-    <div className="card flex items-start gap-4">
-      <div className="bg-gray-800 rounded-lg p-2.5 shrink-0">
+    <div className="card flex items-start gap-4 p-4 border border-gray-800/80 bg-gray-900/60 shadow-lg">
+      <div className="bg-gray-800/80 rounded-xl p-2.5 shrink-0 border border-gray-700/50">
         <Icon className="h-5 w-5 text-brand-400" />
       </div>
-      <div>
-        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{label}</p>
-        <p className={`text-2xl font-bold mt-0.5 ${color}`}>{value}</p>
-        {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">{label}</p>
+        <p className={`text-2xl font-bold mt-1 tracking-tight ${color}`}>{value}</p>
+        {sub && <p className="text-xs text-gray-500 mt-1 truncate">{sub}</p>}
       </div>
     </div>
   )
@@ -74,7 +78,7 @@ export default function DashboardPage() {
   }, [])
 
   if (loading) return (
-    <div className="flex items-center justify-center h-full min-h-screen">
+    <div className="flex items-center justify-center h-full min-h-[60vh]">
       <div className="animate-spin h-10 w-10 border-4 border-brand-500 border-t-transparent rounded-full" />
     </div>
   )
@@ -93,18 +97,18 @@ export default function DashboardPage() {
   const topAgencies = agencyData?.agencies.slice(0, 10) ?? []
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-100">Portfolio Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Central Sector Infrastructure Projects · PAIMANA/OCMS · ₹150 Cr+
+        <h1 className="text-2xl font-bold text-gray-100 tracking-tight">Portfolio Dashboard</h1>
+        <p className="text-gray-400 text-sm mt-1">
+          Central Sector Infrastructure Monitoring · Ministry of Statistics &amp; Programme Implementation (MoSPI)
         </p>
       </div>
 
-      {/* KPI Cards */}
+      {/* Reorganized Administrative KPI Cards (Removed: Avg Cost Overrun, Med Risk, Low Risk, Total Revised Cost) */}
       {summary && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard
             icon={Building2}
             label="Total Projects"
@@ -112,70 +116,56 @@ export default function DashboardPage() {
             sub={`${summary.agencies_count} agencies · ${summary.states_count} states`}
           />
           <StatCard
-            icon={AlertCircle}
-            label="Cost Overrun Projects"
-            value={summary.overrun_count.toLocaleString()}
-            sub={`${summary.overrun_percentage}% of portfolio`}
-            color="text-amber-400"
-          />
-          <StatCard
             icon={TrendingUp}
-            label="High Risk Projects"
+            label="High-Risk Projects"
             value={summary.high_risk_projects.toLocaleString()}
-            sub={`>30% cost overrun`}
+            sub=">30% cost overrun"
             color="text-red-400"
           />
           <StatCard
-            icon={IndianRupee}
-            label="Total Revised Cost"
-            value={summary.total_revised_cost_crore
-              ? `₹${(summary.total_revised_cost_crore / 100000).toFixed(1)}L Cr`
-              : 'N/A'
+            icon={AlertTriangle}
+            label="Anomalous Projects"
+            value={summary.anomalous_projects.toLocaleString()}
+            sub="Operational behavior outliers"
+            color="text-amber-400"
+          />
+          <StatCard
+            icon={AlertCircle}
+            label="Cost Overrun Rate"
+            value={summary.overrun_percentage != null ? `${summary.overrun_percentage}%` : 'Data unavailable'}
+            sub={`${summary.overrun_count.toLocaleString()} projects exceeding budget`}
+            color="text-amber-400"
+          />
+          <StatCard
+            icon={Clock}
+            label="Avg Schedule Delay"
+            value={
+              summary.avg_time_overrun_pct != null
+                ? `+${summary.avg_time_overrun_pct}%`
+                : summary.avg_time_overrun_months != null
+                ? `+${summary.avg_time_overrun_months} Mo`
+                : 'Data unavailable'
             }
-            sub="Revised portfolio value"
+            sub="Average time overrun"
+            color="text-amber-300"
           />
           <StatCard
             icon={CheckCircle2}
             label="Avg Physical Progress"
-            value={summary.avg_physical_progress
-              ? `${summary.avg_physical_progress.toFixed(1)}%`
-              : 'N/A'
-            }
-            sub="Across active projects"
-          />
-          <StatCard
-            icon={Activity}
-            label="Avg Cost Overrun"
-            value={summary.avg_cost_overrun_ratio !== null
-              ? `${(summary.avg_cost_overrun_ratio * 100).toFixed(1)}%`
-              : 'N/A'
-            }
-            sub="Mean across portfolio"
-            color="text-amber-400"
-          />
-          <StatCard
-            icon={MapPin}
-            label="Medium Risk Projects"
-            value={summary.medium_risk_projects.toLocaleString()}
-            sub="10–30% cost overrun"
-            color="text-amber-400"
-          />
-          <StatCard
-            icon={Landmark}
-            label="Low Risk Projects"
-            value={summary.low_risk_projects.toLocaleString()}
-            sub="<10% cost overrun"
+            value={summary.avg_physical_progress != null ? `${summary.avg_physical_progress}%` : 'Data unavailable'}
+            sub="Across active portfolio"
             color="text-emerald-400"
           />
         </div>
       )}
 
-      {/* Charts Row */}
+      {/* Visual Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Risk Distribution Pie */}
         {riskDist && (
           <div className="card">
-            <h2 className="font-semibold text-gray-200 mb-4">Risk Distribution</h2>
+            <h2 className="font-semibold text-gray-200 mb-1">Portfolio Risk Classification</h2>
+            <p className="text-xs text-gray-500 mb-4">Percentage breakdown of projects by cost overrun threshold</p>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
@@ -184,7 +174,7 @@ export default function DashboardPage() {
                   nameKey="label"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
+                  outerRadius={95}
                   label={(entry: any) => `${entry.percentage}%`}
                 >
                   {riskDist.distribution.map((entry) => (
@@ -212,20 +202,22 @@ export default function DashboardPage() {
         {/* Top Agencies Bar */}
         {topAgencies.length > 0 && (
           <div className="card">
-            <h2 className="font-semibold text-gray-200 mb-4">Top Agencies by Project Count</h2>
+            <h2 className="font-semibold text-gray-200 mb-1">Top Implementing Agencies</h2>
+            <p className="text-xs text-gray-500 mb-4">Project volume by nodal central ministry / PSU</p>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={topAgencies} layout="vertical" margin={{ left: 8 }}>
+              <BarChart data={topAgencies} layout="vertical" margin={{ left: 10, right: 20 }}>
                 <XAxis type="number" stroke="#4b5563" tick={{ fill: '#9ca3af', fontSize: 11 }} />
                 <YAxis
                   dataKey="agency"
                   type="category"
-                  width={70}
+                  width={80}
                   stroke="#4b5563"
                   tick={{ fill: '#9ca3af', fontSize: 10 }}
-                  tickFormatter={(v: string) => v.length > 10 ? v.slice(0, 10) + '…' : v}
+                  tickFormatter={(v: string) => v.length > 12 ? v.slice(0, 12) + '…' : v}
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px', color: '#f3f4f6' }}
+                  formatter={(val) => [`${val} projects`, 'Total Projects']}
                 />
                 <Bar dataKey="project_count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -234,46 +226,53 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* State Analysis Table */}
+      {/* State-wise Breakdown */}
       {topStates.length > 0 && (
         <div className="card">
-          <h2 className="font-semibold text-gray-200 mb-4">State-wise Portfolio Analysis (Top 10)</h2>
+          <h2 className="font-semibold text-gray-200 mb-1">State Infrastructure Analysis (Top 10 States)</h2>
+          <p className="text-xs text-gray-500 mb-4">Concentration of central works, overrun percentages, and physical execution rates</p>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="text-gray-500 border-b border-gray-800">
-                  <th className="text-left py-2 pr-4 font-medium">State</th>
-                  <th className="text-right py-2 px-4 font-medium">Projects</th>
-                  <th className="text-right py-2 px-4 font-medium">Avg Overrun</th>
-                  <th className="text-right py-2 px-4 font-medium">High Risk</th>
-                  <th className="text-right py-2 pl-4 font-medium">Avg Progress</th>
+                <tr className="text-gray-400 border-b border-gray-800 text-left">
+                  <th className="py-2.5 pr-4 font-medium">State / UT</th>
+                  <th className="py-2.5 px-4 font-medium text-right">Total Projects</th>
+                  <th className="py-2.5 px-4 font-medium text-right">Avg Cost Overrun %</th>
+                  <th className="py-2.5 px-4 font-medium text-right">High-Risk Projects</th>
+                  <th className="py-2.5 pl-4 font-medium text-right">Avg Physical Progress</th>
                 </tr>
               </thead>
-              <tbody>
-                {topStates.map((s) => (
-                  <tr key={s.state} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                    <td className="py-2 pr-4 text-gray-200">{s.state}</td>
-                    <td className="py-2 px-4 text-right text-gray-300">{s.project_count}</td>
-                    <td className="py-2 px-4 text-right">
-                      <span className={
-                        (s.avg_cost_overrun_ratio ?? 0) > 0.30 ? 'text-red-400' :
-                        (s.avg_cost_overrun_ratio ?? 0) > 0.10 ? 'text-amber-400' : 'text-emerald-400'
-                      }>
-                        {s.avg_cost_overrun_ratio !== null
-                          ? `${(s.avg_cost_overrun_ratio * 100).toFixed(1)}%`
-                          : '—'
-                        }
-                      </span>
-                    </td>
-                    <td className="py-2 px-4 text-right text-red-400">{s.high_risk_count}</td>
-                    <td className="py-2 pl-4 text-right text-gray-300">
-                      {s.avg_physical_progress !== null
-                        ? `${s.avg_physical_progress.toFixed(1)}%`
-                        : '—'
-                      }
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-gray-800/40">
+                {topStates.map((s) => {
+                  const ovPct = s.avg_cost_overrun_pct ?? (s.avg_cost_overrun_ratio != null ? s.avg_cost_overrun_ratio * 100 : null)
+                  return (
+                    <tr key={s.state} className="hover:bg-gray-800/30">
+                      <td className="py-2.5 pr-4 text-gray-200 font-medium">{s.state}</td>
+                      <td className="py-2.5 px-4 text-right text-gray-300">{s.project_count}</td>
+                      <td className="py-2.5 px-4 text-right">
+                        {ovPct !== null ? (
+                          <span className={
+                            ovPct > 30 ? 'text-red-400 font-semibold' :
+                            ovPct > 10 ? 'text-amber-400 font-semibold' :
+                            'text-emerald-400 font-semibold'
+                          }>
+                            {ovPct > 0 ? `+${ovPct.toFixed(1)}%` : `${ovPct.toFixed(1)}%`}
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 italic">Data unavailable</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-4 text-right">
+                        <span className={s.high_risk_count > 0 ? 'text-red-400 font-semibold' : 'text-gray-400'}>
+                          {s.high_risk_count}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pl-4 text-right text-gray-200 font-medium">
+                        {s.avg_physical_progress !== null ? `${s.avg_physical_progress.toFixed(1)}%` : 'Data unavailable'}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

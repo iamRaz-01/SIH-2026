@@ -72,6 +72,7 @@ export const getAnomalies = (params?: {
   quadrant?: string;
   page?: number;
   page_size?: number;
+  search?: string;
 }) => {
   const qs = new URLSearchParams();
   if (params?.limit) qs.set('limit', String(params.limit));
@@ -96,11 +97,11 @@ export const getProjectBenchmarks = (projectCode: string) =>
   apiFetch<ProjectBenchmarksResponse>(`/api/benchmarks/${projectCode}`);
 
 // ── Network ────────────────────────────────────────────────────────────────────
-export const getNetwork = (maxNodes = 200) =>
+export const getNetwork = (maxNodes = 250) =>
   apiFetch<NetworkResponse>(`/api/network?max_nodes=${maxNodes}`);
 
-// ── Alerts ─────────────────────────────────────────────────────────────────────
-export const getAlerts = (limit = 20) =>
+// ── Alerts (Top 5 for Notification Bell) ───────────────────────────────────────
+export const getAlerts = (limit = 5) =>
   apiFetch<AlertsResponse>(`/api/alerts?limit=${limit}`);
 
 // ── TypeScript interfaces ──────────────────────────────────────────────────────
@@ -142,16 +143,18 @@ export interface Project {
   doa?: string;
   original_target_doa?: string;
   revised_completion?: string;
-  original_cost?: number;
-  revised_cost?: number;
-  cumulative_expenditure?: number;
-  physical_progress?: number;
+  original_cost?: number | null;
+  revised_cost?: number | null;
+  cumulative_expenditure?: number | null;
+  physical_progress?: number | null;
   edition?: string;
-  cost_overrun_ratio?: number;
-  expenditure_ratio?: number;
+  cost_overrun_ratio?: number | null;
+  cost_overrun_pct?: number | null;
+  expenditure_ratio?: number | null;
   is_overrun?: number;
-  time_overrun_months?: number;
-  project_age_months?: number;
+  time_overrun_months?: number | null;
+  time_overrun_pct?: number | null;
+  project_age_months?: number | null;
   [key: string]: unknown;
 }
 
@@ -176,13 +179,11 @@ export interface DashboardSummary {
   total_projects: number;
   overrun_count: number;
   overrun_percentage: number;
-  avg_cost_overrun_ratio: number | null;
-  avg_physical_progress: number | null;
-  total_revised_cost_crore: number | null;
-  total_original_cost_crore: number | null;
   high_risk_projects: number;
-  medium_risk_projects: number;
-  low_risk_projects: number;
+  anomalous_projects: number;
+  avg_physical_progress: number | null;
+  avg_time_overrun_pct: number | null;
+  avg_time_overrun_months: number | null;
   agencies_count: number;
   states_count: number;
 }
@@ -202,7 +203,7 @@ export interface StateStats {
   state: string;
   project_count: number;
   avg_cost_overrun_ratio: number | null;
-  total_revised_cost_crore: number | null;
+  avg_cost_overrun_pct: number | null;
   high_risk_count: number;
   avg_physical_progress: number | null;
 }
@@ -216,7 +217,7 @@ export interface AgencyStats {
   agency: string;
   project_count: number;
   avg_cost_overrun_ratio: number | null;
-  total_revised_cost_crore: number | null;
+  avg_cost_overrun_pct: number | null;
   avg_physical_progress: number | null;
 }
 
@@ -299,6 +300,13 @@ export interface Anomaly {
   project_name: string;
   agency: string;
   state: string;
+  original_cost?: number | null;
+  revised_cost?: number | null;
+  cumulative_expenditure?: number | null;
+  physical_progress?: number | null;
+  cost_overrun_pct?: number | null;
+  time_overrun_months?: number | null;
+  time_overrun_pct?: number | null;
   anomaly_score: number;
   anomaly_score_norm: number;
   raw_anomaly_score?: number;
@@ -306,10 +314,21 @@ export interface Anomaly {
   anomaly_status?: string;
   severity?: string;
   risk_quadrant?: string;
+  risk_status?: string;
   anomaly_reason: string;
   explanation?: string;
   detected_indicators?: DetectedIndicator[];
-  relevant_project_metrics?: Record<string, number | null>;
+  relevant_project_metrics?: {
+    original_cost?: number | null;
+    revised_cost?: number | null;
+    cumulative_expenditure?: number | null;
+    physical_progress?: number | null;
+    expenditure_ratio?: number | null;
+    cost_overrun_pct?: number | null;
+    time_overrun_months?: number | null;
+    time_overrun_pct?: number | null;
+    project_age_months?: number | null;
+  };
 }
 
 export interface AnomalyDetail extends Anomaly {
@@ -396,21 +415,31 @@ export interface ProjectBenchmarksResponse {
 
 export interface NetworkNode {
   id: string;
+  project_code?: string;
+  project_name: string;
   label: string;
   agency: string;
   state: string;
   original_cost: number | null;
   revised_cost: number | null;
-  cost_overrun_ratio: number | null;
+  cumulative_expenditure?: number | null;
   physical_progress: number | null;
+  cost_overrun_pct?: number | null;
+  time_overrun_months?: number | null;
+  time_overrun_pct?: number | null;
   is_anomaly: number;
+  anomaly_status?: string;
   risk_class: string;
   degree: number;
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
 }
 
 export interface NetworkEdge {
-  source: string;
-  target: string;
+  source: string | NetworkNode;
+  target: string | NetworkNode;
   weight: number;
   reasons: string[];
 }
@@ -429,15 +458,20 @@ export interface NetworkResponse {
 }
 
 export interface Alert {
+  id?: string;
   project_id: string;
+  project_code: string;
   project_name: string;
   agency: string;
   state: string;
-  alert_type: string;
-  severity: string;
+  severity: 'High' | 'Medium' | 'Informational' | string;
+  severity_code?: 'high' | 'medium' | 'info';
+  priority_rank?: number;
+  title: string;
   message: string;
-  cost_overrun_ratio: number | null;
-  physical_progress: number | null;
+  metric_responsible: string;
+  metric_value: string;
+  date?: string | null;
 }
 
 export interface AlertsResponse {

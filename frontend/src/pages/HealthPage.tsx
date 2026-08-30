@@ -127,7 +127,7 @@ export default function HealthPage() {
           <div className="card">
             <div className="flex items-center gap-1 mb-2">
               <StatusDot ok={data.anomaly_detector?.fitted ?? false} />
-              <h2 className="font-semibold text-gray-200">Anomaly Detector (Isolation Forest USP #1)</h2>
+              <h2 className="font-semibold text-gray-200">Anomaly Detector (Isolation Forest)</h2>
             </div>
             {data.anomaly_detector?.fitted ? (
               <div className="text-sm text-gray-400 space-y-1">
@@ -144,7 +144,7 @@ export default function HealthPage() {
           <div className="card">
             <div className="flex items-center gap-1 mb-2">
               <StatusDot ok={data.project_network?.built ?? false} />
-              <h2 className="font-semibold text-gray-200">Project Network Graph (USP #2)</h2>
+              <h2 className="font-semibold text-gray-200">Project Network Graph</h2>
             </div>
             {data.project_network?.built ? (
               <div className="text-sm text-gray-400 space-y-1">

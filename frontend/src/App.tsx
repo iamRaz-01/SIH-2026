@@ -5,7 +5,6 @@ import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import AnomaliesPage from './pages/AnomaliesPage'
 import NetworkPage from './pages/NetworkPage'
-import AlertsPage from './pages/AlertsPage'
 import PredictPage from './pages/PredictPage'
 import HealthPage from './pages/HealthPage'
 
@@ -19,9 +18,9 @@ export default function App() {
         <Route path="projects/:projectId" element={<ProjectDetailPage />} />
         <Route path="anomalies" element={<AnomaliesPage />} />
         <Route path="network" element={<NetworkPage />} />
-        <Route path="alerts" element={<AlertsPage />} />
         <Route path="predict" element={<PredictPage />} />
         <Route path="health" element={<HealthPage />} />
+        <Route path="alerts" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>

@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
 import { getAlerts, type Alert, type AlertsResponse } from '../api/client'
-import { Bell, AlertOctagon, AlertTriangle } from 'lucide-react'
+import { Bell, AlertOctagon, AlertTriangle, Info, ExternalLink } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 const SEVERITY_ICON: Record<string, React.ElementType> = {
-  Critical: AlertOctagon,
-  High: AlertTriangle,
+  High: AlertOctagon,
+  Medium: AlertTriangle,
+  Informational: Info,
 }
 
 const SEVERITY_STYLE: Record<string, string> = {
-  Critical: 'border-red-800 bg-red-950/30 text-red-400',
-  High: 'border-amber-800 bg-amber-950/30 text-amber-400',
+  High: 'border-red-800 bg-red-950/30 text-red-400',
+  Medium: 'border-amber-800 bg-amber-950/30 text-amber-400',
+  Informational: 'border-blue-800 bg-blue-950/30 text-blue-400',
 }
 
 export default function AlertsPage() {
@@ -18,21 +21,21 @@ export default function AlertsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getAlerts(50)
+    getAlerts(5)
       .then(setData)
       .catch(e => setError(String(e)))
       .finally(() => setLoading(false))
   }, [])
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-5 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold text-gray-100 flex items-center gap-2">
           <Bell className="h-6 w-6 text-red-400" />
           Early-Warning Alerts
         </h1>
         <p className="text-gray-500 text-sm mt-1">
-          Rule-based triggers: severe cost overrun (&gt;50%) and expenditure-progress mismatch (&gt;30pp)
+          Top-priority alerts derived directly from central infrastructure portfolio conditions
         </p>
       </div>
 
@@ -57,11 +60,12 @@ export default function AlertsPage() {
                   <Icon className="h-5 w-5 mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-mono uppercase tracking-wide opacity-70">
-                        {alert.alert_type.replace(/_/g, ' ')}
+                      <span className="text-xs font-bold uppercase tracking-wide">
+                        {alert.title}
                       </span>
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        alert.severity === 'Critical' ? 'bg-red-900 text-red-300' : 'bg-amber-900 text-amber-300'
+                        alert.severity === 'High' ? 'bg-red-900 text-red-300' :
+                        alert.severity === 'Medium' ? 'bg-amber-900 text-amber-300' : 'bg-blue-900 text-blue-300'
                       }`}>
                         {alert.severity}
                       </span>
@@ -70,15 +74,17 @@ export default function AlertsPage() {
                       {alert.project_name}
                     </p>
                     <p className="text-xs opacity-70 mt-0.5">
-                      {alert.agency} · {alert.state}
+                      {alert.agency} · {alert.state} · Code: {alert.project_code}
                     </p>
-                    <p className="text-sm mt-2">{alert.message}</p>
-                    <div className="flex gap-4 mt-2 text-xs opacity-60">
-                      {alert.cost_overrun_ratio !== null && (
-                        <span>Cost overrun: {(alert.cost_overrun_ratio * 100).toFixed(1)}%</span>
-                      )}
-                      {alert.physical_progress !== null && (
-                        <span>Progress: {alert.physical_progress.toFixed(1)}%</span>
+                    <p className="text-sm mt-2 text-gray-200">{alert.message}</p>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-800/50 text-xs">
+                      <span className="font-mono text-gray-300">
+                        {alert.metric_responsible}: <strong>{alert.metric_value}</strong>
+                      </span>
+                      {alert.project_id && (
+                        <Link to={`/projects/${alert.project_id}`} className="text-brand-400 font-medium flex items-center gap-1">
+                          View Project <ExternalLink className="h-3 w-3" />
+                        </Link>
                       )}
                     </div>
                   </div>
@@ -88,7 +94,7 @@ export default function AlertsPage() {
           })}
           {!data?.alerts.length && !loading && (
             <div className="card text-center text-gray-500 py-12">
-              No alerts triggered — all projects within thresholds.
+              No active alerts.
             </div>
           )}
         </div>

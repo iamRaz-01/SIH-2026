@@ -157,7 +157,7 @@ export default function ProjectDetailPage() {
         <div className="bg-amber-950/30 border border-amber-700/60 rounded-xl p-4 space-y-2">
           <div className="flex items-center gap-2 text-amber-300 text-sm font-bold">
             <Zap className="h-4 w-4 text-amber-400" />
-            USP #1: Isolation Forest Anomaly Diagnostic ({anomaly.severity || 'HIGH'} Severity)
+            Isolation Forest Anomaly Diagnostic ({anomaly.severity || 'HIGH'} Severity)
           </div>
           <p className="text-xs text-gray-300 leading-relaxed">{anomaly.explanation || anomaly.anomaly_reason}</p>
         </div>

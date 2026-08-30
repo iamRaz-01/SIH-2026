@@ -326,12 +326,35 @@ def get_project_anomaly(project_code_or_id: Union[str, int]) -> Optional[dict]:
 def _format_anomaly_record(row: pd.Series) -> dict:
     explanation_text = str(row.get("anomaly_explanation", row.get("anomaly_reason", "")))
     score = float(row.get("anomaly_score", row.get("anomaly_score_norm", 0.0)))
+    
+    orig_c = _clean_num(row.get("original_cost"))
+    rev_c = _clean_num(row.get("revised_cost"))
+    spend = _clean_num(row.get("cumulative_expenditure"))
+    prog = _clean_num(row.get("physical_progress"))
+    cov_pct = _clean_num(row.get("cost_overrun_pct"))
+    time_mo = _clean_num(row.get("time_overrun_months"))
+    plan_dur = _clean_num(row.get("planned_duration_months"))
+    
+    time_pct = None
+    if time_mo is not None and plan_dur is not None and plan_dur > 0:
+        time_pct = round((time_mo / plan_dur) * 100, 1)
+
+    cov_ratio = float(row.get("cost_overrun_ratio", 0) or 0)
+    risk_st = "High Risk" if cov_ratio > 0.30 else ("Medium Risk" if cov_ratio > 0.10 else "Low Risk")
+
     return {
         "project_code": str(row.get("project_code", "")).replace(".0", ""),
         "project_id": str(row.get("project_id", "")),
         "project_name": str(row.get("project_name", "")),
         "agency": str(row.get("agency", "")),
         "state": str(row.get("state", "")),
+        "original_cost": orig_c,
+        "revised_cost": rev_c,
+        "cumulative_expenditure": spend,
+        "physical_progress": prog,
+        "cost_overrun_pct": cov_pct,
+        "time_overrun_months": time_mo,
+        "time_overrun_pct": time_pct,
         "anomaly_score": score,
         "anomaly_score_norm": score,
         "raw_anomaly_score": float(row.get("raw_anomaly_score", 0.0)),
@@ -339,17 +362,19 @@ def _format_anomaly_record(row: pd.Series) -> dict:
         "is_anomaly": int(row.get("is_anomaly", 0)),
         "severity": str(row.get("anomaly_severity", "LOW")),
         "risk_quadrant": str(row.get("risk_quadrant", "LOW_RISK_NORMAL")),
+        "risk_status": risk_st,
         "explanation": explanation_text,
         "anomaly_reason": explanation_text,
         "detected_indicators": row.get("detected_indicators", []),
         "relevant_project_metrics": {
-            "original_cost": _clean_num(row.get("original_cost")),
-            "revised_cost": _clean_num(row.get("revised_cost")),
-            "cumulative_expenditure": _clean_num(row.get("cumulative_expenditure")),
-            "physical_progress": _clean_num(row.get("physical_progress")),
+            "original_cost": orig_c,
+            "revised_cost": rev_c,
+            "cumulative_expenditure": spend,
+            "physical_progress": prog,
             "expenditure_ratio": _clean_num(row.get("expenditure_ratio")),
-            "cost_overrun_pct": _clean_num(row.get("cost_overrun_pct")),
-            "time_overrun_months": _clean_num(row.get("time_overrun_months")),
+            "cost_overrun_pct": cov_pct,
+            "time_overrun_months": time_mo,
+            "time_overrun_pct": time_pct,
             "project_age_months": _clean_num(row.get("project_age_months")),
         },
         "provenance": "UNSUPERVISED_ISOLATION_FOREST",

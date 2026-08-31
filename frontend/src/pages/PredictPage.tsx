@@ -90,9 +90,10 @@ export default function PredictPage() {
     original_cost: '',
     cumulative_expenditure: '',
     physical_progress: '',
-    edition: '',
+    edition: new Date().toISOString().split('T')[0],
   })
   const [customPred, setCustomPred] = useState<PredictionResult | null>(null)
+  const [customShap, setCustomShap] = useState<ShapExplanationResult | null>(null)
   const [loadingCustom, setLoadingCustom] = useState(false)
   const [customError, setCustomError] = useState<string | null>(null)
 
@@ -339,12 +340,40 @@ export default function PredictPage() {
     return null
   }, [scenarioForm.original_cost])
 
+  // Custom Form Out-of-Distribution Warning
+  const customOODWarning = useMemo(() => {
+    const cost = Number(customForm.original_cost)
+    if (cost > 80000) {
+      return 'Sanctioned Cost is unusually high (> ₹80,000 Cr). Prediction reliability may be reduced.'
+    }
+    return null
+  }, [customForm.original_cost])
+
   // Custom Form submit
   const onCustomSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setLoadingCustom(true)
     setCustomError(null)
+
+    const costNum = Number(customForm.original_cost)
+    const expNum = Number(customForm.cumulative_expenditure)
+    const progNum = Number(customForm.physical_progress)
+
+    if (!customForm.original_cost || isNaN(costNum) || costNum <= 0) {
+      setCustomError('Sanctioned Cost must be a positive numeric value in ₹ Crore.')
+      return
+    }
+    if (customForm.cumulative_expenditure === '' || isNaN(expNum) || expNum < 0) {
+      setCustomError('Cumulative Expenditure must be a non-negative numeric value in ₹ Crore.')
+      return
+    }
+    if (customForm.physical_progress === '' || isNaN(progNum) || progNum < 0 || progNum > 100) {
+      setCustomError('Physical Progress must be a valid percentage between 0% and 100%.')
+      return
+    }
+
+    setLoadingCustom(true)
     setCustomPred(null)
+    setCustomShap(null)
 
     const payload = {
       project_name: customForm.project_name || undefined,
@@ -352,18 +381,65 @@ export default function PredictPage() {
       state: customForm.state || undefined,
       doa: customForm.doa || undefined,
       original_target_doa: customForm.original_target_doa || undefined,
-      original_cost: customForm.original_cost ? Number(customForm.original_cost) : undefined,
-      cumulative_expenditure: customForm.cumulative_expenditure ? Number(customForm.cumulative_expenditure) : undefined,
-      physical_progress: customForm.physical_progress ? Number(customForm.physical_progress) : undefined,
+      original_cost: costNum,
+      cumulative_expenditure: expNum,
+      physical_progress: progNum,
       edition: customForm.edition || undefined,
     }
 
-    predictCostOverrun(payload)
-      .then(pred => {
+    Promise.all([
+      predictCostOverrun(payload),
+      explainPrediction(payload, 6).catch(() => null),
+    ])
+      .then(([pred, shap]) => {
         setCustomPred(pred)
+        setCustomShap(shap)
       })
       .catch(e => setCustomError(String(e)))
       .finally(() => setLoadingCustom(false))
+  }
+
+  const onResetCustom = () => {
+    setCustomForm({
+      project_name: '',
+      agency: '',
+      state: '',
+      doa: '',
+      original_target_doa: '',
+      original_cost: '',
+      cumulative_expenditure: '',
+      physical_progress: '',
+      edition: new Date().toISOString().split('T')[0],
+    })
+    setCustomPred(null)
+    setCustomShap(null)
+    setCustomError(null)
+  }
+
+  const applyCustomPreset = (preset: {
+    name: string
+    agency: string
+    state: string
+    cost: string
+    spend: string
+    progress: string
+    doa?: string
+    target?: string
+  }) => {
+    setCustomForm({
+      project_name: preset.name,
+      agency: preset.agency,
+      state: preset.state,
+      doa: preset.doa || '2023-01-15',
+      original_target_doa: preset.target || '2026-03-31',
+      original_cost: preset.cost,
+      cumulative_expenditure: preset.spend,
+      physical_progress: preset.progress,
+      edition: new Date().toISOString().split('T')[0],
+    })
+    setCustomPred(null)
+    setCustomShap(null)
+    setCustomError(null)
   }
 
   return (
@@ -836,70 +912,312 @@ export default function PredictPage() {
 
       {/* ── TAB 2: CUSTOM PROJECT INFERENCE ── */}
       {activeTab === 'custom' && (
-        <form onSubmit={onCustomSubmit} className="card p-6 bg-[#FFFFFF] space-y-6 shadow-xs">
-          <div>
-            <h3 className="text-[18px] font-semibold text-[#0F172A]">Manual Project Feature Inference</h3>
-            <p className="text-[14px] text-[#475569] font-normal mt-0.5">
-              Score arbitrary project inputs through the production LightGBM pipeline.
-            </p>
-          </div>
+        <div className="space-y-6">
+          <form onSubmit={onCustomSubmit} className="card p-6 bg-[#FFFFFF] space-y-6 shadow-xs border border-[#E2E8F0]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8F0] pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[18px] font-semibold text-[#0F172A]">Mode B: Custom Project Inference</h3>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#F1F5F9] text-[#475569] border border-[#CBD5E1]">
+                    Session Only · No Database Write
+                  </span>
+                </div>
+                <p className="text-[14px] text-[#475569] font-normal mt-0.5">
+                  Evaluate hypothetical or unlisted infrastructure projects through the production LightGBM pipeline.
+                </p>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-[14px] text-[#475569] block mb-1 font-medium">Project Name</label>
-              <input name="project_name" className="input w-full" placeholder="e.g. Western Dedicated Freight Corridor" value={customForm.project_name} onChange={e => setCustomForm(f => ({ ...f, project_name: e.target.value }))} />
+              {/* Quick Template Presets */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[12px] text-[#64748B] font-medium mr-1">Sample Templates:</span>
+                <button
+                  type="button"
+                  onClick={() => applyCustomPreset({
+                    name: 'Greenfield Highway Package Alpha',
+                    agency: 'NHAI',
+                    state: 'Maharashtra',
+                    cost: '1200.0',
+                    spend: '900.0',
+                    progress: '65.0',
+                    doa: '2023-01-15',
+                    target: '2026-06-30',
+                  })}
+                  className="px-2.5 py-1 text-[12px] rounded-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#334155] border border-[#E2E8F0] font-medium transition"
+                >
+                  Highway Corridor (₹1,200Cr)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyCustomPreset({
+                    name: 'Urban Rail Metro Line Expansion',
+                    agency: 'RVNL',
+                    state: 'Tamil Nadu',
+                    cost: '3500.0',
+                    spend: '3150.0',
+                    progress: '85.0',
+                    doa: '2022-04-10',
+                    target: '2025-12-31',
+                  })}
+                  className="px-2.5 py-1 text-[12px] rounded-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#334155] border border-[#E2E8F0] font-medium transition"
+                >
+                  Metro Extension (₹3,500Cr)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyCustomPreset({
+                    name: 'Mega Solar Renewable Complex',
+                    agency: 'NTPC',
+                    state: 'Rajasthan',
+                    cost: '450.0',
+                    spend: '150.0',
+                    progress: '40.0',
+                    doa: '2024-02-01',
+                    target: '2026-08-31',
+                  })}
+                  className="px-2.5 py-1 text-[12px] rounded-lg bg-[#F8FAFC] hover:bg-[#F1F5F9] text-[#334155] border border-[#E2E8F0] font-medium transition"
+                >
+                  Solar Park (₹450Cr)
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="text-[14px] text-[#475569] block mb-1 font-medium">Agency / Ministry</label>
-              <input name="agency" className="input w-full" placeholder="e.g. NHAI, RVNL, AAI" value={customForm.agency} onChange={e => setCustomForm(f => ({ ...f, agency: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-[14px] text-[#475569] block mb-1 font-medium">State / UT</label>
-              <input name="state" className="input w-full" placeholder="e.g. Maharashtra" value={customForm.state} onChange={e => setCustomForm(f => ({ ...f, state: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-[14px] text-[#475569] block mb-1 font-medium">Snapshot Date</label>
-              <input name="edition" type="date" className="input w-full" value={customForm.edition} onChange={e => setCustomForm(f => ({ ...f, edition: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-[14px] text-[#475569] block mb-1 font-medium">Sanctioned Cost (₹ Crore)</label>
-              <input name="original_cost" type="number" step="0.1" className="input w-full" placeholder="e.g. 1200.0" value={customForm.original_cost} onChange={e => setCustomForm(f => ({ ...f, original_cost: e.target.value }))} />
-            </div>
-            <div>
-              <label className="text-[14px] text-[#475569] block mb-1 font-medium">Cumulative Expenditure (₹ Crore)</label>
-              <input name="cumulative_expenditure" type="number" step="0.1" className="input w-full" placeholder="e.g. 900.0" value={customForm.cumulative_expenditure} onChange={e => setCustomForm(f => ({ ...f, cumulative_expenditure: e.target.value }))} />
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-[14px] text-[#475569] block mb-1 font-medium">Physical Progress (0–100 %)</label>
-              <input name="physical_progress" type="number" step="0.1" min="0" max="100" className="input w-full" placeholder="e.g. 65.0" value={customForm.physical_progress} onChange={e => setCustomForm(f => ({ ...f, physical_progress: e.target.value }))} />
-            </div>
-          </div>
 
-          <button type="submit" disabled={loadingCustom} className="btn-primary text-[14px] font-semibold py-2.5 px-6">
-            {loadingCustom ? 'Executing Pipeline…' : 'Run ML Inference'}
-          </button>
+            {/* Form Fields Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-[14px] text-[#475569] block mb-1 font-medium">Project Name</label>
+                <input
+                  name="project_name"
+                  className="input w-full"
+                  placeholder="e.g. Western Dedicated Freight Corridor"
+                  value={customForm.project_name}
+                  onChange={e => setCustomForm(f => ({ ...f, project_name: e.target.value }))}
+                />
+                <span className="text-[11px] text-[#94A3B8] mt-0.5 block">NLP scans for sector keywords (road, rail, power, etc.)</span>
+              </div>
 
-          {customError && (
-            <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 text-[#B91C1C] text-[14px]">
-              {customError}
+              <div>
+                <label className="text-[14px] text-[#475569] block mb-1 font-medium">Implementing Agency / Ministry</label>
+                <input
+                  name="agency"
+                  className="input w-full"
+                  placeholder="e.g. NHAI, RVNL, AAI, NTPC, IOCL"
+                  value={customForm.agency}
+                  onChange={e => setCustomForm(f => ({ ...f, agency: e.target.value }))}
+                />
+                <span className="text-[11px] text-[#94A3B8] mt-0.5 block">Unlisted agencies safely map to &quot;OTHER&quot;</span>
+              </div>
+
+              <div>
+                <label className="text-[14px] text-[#475569] block mb-1 font-medium">State / UT</label>
+                <input
+                  name="state"
+                  className="input w-full"
+                  placeholder="e.g. Maharashtra, Tamil Nadu, Delhi"
+                  value={customForm.state}
+                  onChange={e => setCustomForm(f => ({ ...f, state: e.target.value }))}
+                />
+                <span className="text-[11px] text-[#94A3B8] mt-0.5 block">Unlisted states safely map to &quot;OTHER&quot;</span>
+              </div>
+
+              <div>
+                <label className="text-[14px] text-[#475569] block mb-1 font-medium">Date of Approval (DOA)</label>
+                <input
+                  name="doa"
+                  type="date"
+                  className="input w-full"
+                  value={customForm.doa}
+                  onChange={e => setCustomForm(f => ({ ...f, doa: e.target.value }))}
+                />
+                <span className="text-[11px] text-[#94A3B8] mt-0.5 block">Project sanction date</span>
+              </div>
+
+              <div>
+                <label className="text-[14px] text-[#475569] block mb-1 font-medium">Original Target Date</label>
+                <input
+                  name="original_target_doa"
+                  type="date"
+                  className="input w-full"
+                  value={customForm.original_target_doa}
+                  onChange={e => setCustomForm(f => ({ ...f, original_target_doa: e.target.value }))}
+                />
+                <span className="text-[11px] text-[#94A3B8] mt-0.5 block">Planned completion target</span>
+              </div>
+
+              <div>
+                <label className="text-[14px] text-[#475569] block mb-1 font-medium">Snapshot / Reporting Date</label>
+                <input
+                  name="edition"
+                  type="date"
+                  className="input w-full"
+                  value={customForm.edition}
+                  onChange={e => setCustomForm(f => ({ ...f, edition: e.target.value }))}
+                />
+                <span className="text-[11px] text-[#94A3B8] mt-0.5 block">Evaluation reporting cycle</span>
+              </div>
+
+              <div>
+                <label className="text-[14px] text-[#475569] block mb-1 font-medium">
+                  Sanctioned Cost (₹ Crore) <span className="text-[#DC2626]">*</span>
+                </label>
+                <input
+                  name="original_cost"
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  className="input w-full font-semibold text-[#0F172A]"
+                  placeholder="e.g. 1200.0"
+                  value={customForm.original_cost}
+                  onChange={e => setCustomForm(f => ({ ...f, original_cost: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[14px] text-[#475569] block mb-1 font-medium">
+                  Cumulative Expenditure (₹ Crore) <span className="text-[#DC2626]">*</span>
+                </label>
+                <input
+                  name="cumulative_expenditure"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  className="input w-full font-semibold text-[#0F172A]"
+                  placeholder="e.g. 900.0"
+                  value={customForm.cumulative_expenditure}
+                  onChange={e => setCustomForm(f => ({ ...f, cumulative_expenditure: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-[14px] text-[#475569] block mb-1 font-medium">
+                  Physical Progress (0–100 %) <span className="text-[#DC2626]">*</span>
+                </label>
+                <input
+                  name="physical_progress"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  className="input w-full font-semibold text-[#0F172A]"
+                  placeholder="e.g. 65.0"
+                  value={customForm.physical_progress}
+                  onChange={e => setCustomForm(f => ({ ...f, physical_progress: e.target.value }))}
+                  required
+                />
+              </div>
             </div>
-          )}
 
+            {/* Out of distribution warning */}
+            {customOODWarning && (
+              <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-3.5 flex items-center gap-2 text-[#92400E] text-[13px]">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-[#D97706]" />
+                <span>{customOODWarning}</span>
+              </div>
+            )}
+
+            {/* Form Action Buttons */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={loadingCustom}
+                className="btn-primary text-[14px] font-semibold py-2.5 px-6 flex items-center gap-2"
+              >
+                <Play className="h-4 w-4" />
+                {loadingCustom ? 'Executing Pipeline…' : 'Run ML Inference'}
+              </button>
+
+              <button
+                type="button"
+                onClick={onResetCustom}
+                className="btn-secondary text-[14px] font-medium py-2.5 px-4 flex items-center gap-1.5 text-[#475569]"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reset Form
+              </button>
+            </div>
+
+            {customError && (
+              <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4 text-[#B91C1C] text-[14px]">
+                {customError}
+              </div>
+            )}
+          </form>
+
+          {/* Custom Prediction Result Display */}
           {customPred && (
-            <div className="bg-[#F8FAFC] p-4.5 rounded-xl border border-[#E2E8F0] space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="card p-6 bg-[#FFFFFF] space-y-5 shadow-xs border border-[#E2E8F0]">
+              {/* Temporary Session Guarantee Banner */}
+              <div className="bg-[#F0FDF4] border border-[#BBF7D0] p-3.5 rounded-xl flex items-center justify-between text-[12px] text-[#166534]">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-[#16A34A] shrink-0" />
+                  <span>
+                    <strong>CUSTOM INFERENCE RESULT (SESSION ONLY):</strong> Computed in-memory using the calibrated LightGBM model. This custom record is <strong>not stored</strong> in the database and does not alter dashboard project counts.
+                  </span>
+                </div>
+              </div>
+
+              {/* Main Score KPI */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#F8FAFC] p-5 rounded-xl border border-[#E2E8F0]">
                 <div>
-                  <span className="text-[12px] text-[#64748B] uppercase font-semibold">Predicted Probability</span>
-                  <p className="text-[26px] font-bold text-[#0F172A] leading-none mt-0.5">
-                    {customPred.cost_overrun_probability != null ? `${(customPred.cost_overrun_probability * 100).toFixed(1)}%` : '—'}
+                  <span className="text-[12px] text-[#64748B] uppercase font-semibold">
+                    {customForm.project_name ? customForm.project_name : 'Custom Project Inference'}
+                  </span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <p className="text-[32px] font-bold text-[#0F172A] leading-none">
+                      {customPred.cost_overrun_probability != null
+                        ? `${(customPred.cost_overrun_probability * 100).toFixed(1)}%`
+                        : '—'}
+                    </p>
+                    <span className="text-[13px] text-[#64748B]">predicted cost-overrun probability</span>
+                  </div>
+                  <p className="text-[13px] text-[#475569] mt-1.5">
+                    Model Decision: <strong className="text-[#0F172A]">{customPred.prediction}</strong> · Optimal Threshold: <strong className="text-[#0F172A]">{((customPred.optimal_threshold ?? 0.387) * 100).toFixed(1)}%</strong>
                   </p>
                 </div>
-                <RiskBadge riskClass={customPred.risk_level || customPred.risk_class} />
+
+                <div className="self-start sm:self-center">
+                  <RiskBadge riskClass={customPred.risk_level || customPred.risk_class} />
+                </div>
               </div>
-              <p className="text-[13px] text-[#475569]">Decision: <strong className="text-[#0F172A]">{customPred.prediction}</strong> (Threshold: {((customPred.optimal_threshold ?? 0.387) * 100).toFixed(1)}%)</p>
+
+              {/* Tree SHAP Attributions for Custom Input */}
+              {customShap?.top_contributing_features && customShap.top_contributing_features.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+                    <h4 className="font-semibold text-[15px] text-[#0F172A] flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4 text-[#7C3AED]" />
+                      Tree SHAP Explanations (Feature Drivers)
+                    </h4>
+                    <span className="text-[12px] text-[#64748B]">Exact TreeExplainer log-odds attributions</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {customShap.top_contributing_features.map((feat, idx) => {
+                      const isRiskUp = feat.impact === 'INCREASES_RISK'
+                      return (
+                        <div key={idx} className="bg-[#F8FAFC] p-3.5 rounded-xl border border-[#E2E8F0] space-y-1.5 text-[13px]">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-[#0F172A] truncate mr-2">{feat.label}</span>
+                            <span className={`font-semibold px-2 py-0.5 rounded text-[11px] shrink-0 ${
+                              isRiskUp ? 'badge-danger' : 'badge-success'
+                            }`}>
+                              {feat.shap_value > 0 ? `+${feat.shap_value.toFixed(3)}` : feat.shap_value.toFixed(3)} SHAP
+                            </span>
+                          </div>
+                          <p className="text-[12px] text-[#64748B] leading-snug">{feat.explanation}</p>
+                          <div className="text-[11px] text-[#94A3B8] pt-1 border-t border-[#EDF2F7]">
+                            Feature Value: {feat.value != null ? feat.value : 'N/A'}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </form>
+        </div>
       )}
     </div>
   )

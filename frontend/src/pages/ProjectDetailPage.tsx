@@ -12,11 +12,12 @@ import {
   type ProjectBenchmarksResponse,
   type AnomalyDetail,
 } from '../api/client'
+import { getWebEvidence, type WebIntelligenceResponse } from '../api/aria'
 import { useWatchlist } from '../context/WatchlistContext'
 import ProjectHistoryModal from '../components/ProjectHistoryModal'
 import {
   ArrowLeft, Brain, Sparkles, Zap, AlertTriangle,
-  ShieldCheck, Star, Calendar, History,
+  ShieldCheck, Star, Calendar, History, Globe,
 } from 'lucide-react'
 
 function RiskBadge({ riskClass }: { riskClass?: string }) {
@@ -34,6 +35,9 @@ export default function ProjectDetailPage() {
   const [benchmarks, setBenchmarks] = useState<ProjectBenchmarksResponse | null>(null)
   const [anomaly, setAnomaly] = useState<AnomalyDetail | null>(null)
   const [openHistory, setOpenHistory] = useState(false)
+  const [webIntel, setWebIntel] = useState<WebIntelligenceResponse | null>(null)
+  const [webIntelLoading, setWebIntelLoading] = useState(false)
+  const [webIntelError, setWebIntelError] = useState<string | null>(null)
 
   const [loadingProject, setLoadingProject] = useState(true)
   const [loadingPred, setLoadingPred] = useState(false)
@@ -80,6 +84,16 @@ export default function ProjectDetailPage() {
       })
       .catch(e => setPredError(String(e)))
       .finally(() => setLoadingPred(false))
+  }
+
+  const fetchWebIntelligence = (force = false) => {
+    if (!projectId) return
+    setWebIntelLoading(true)
+    setWebIntelError(null)
+    getWebEvidence(projectId, force)
+      .then(setWebIntel)
+      .catch(e => setWebIntelError(String(e)))
+      .finally(() => setWebIntelLoading(false))
   }
 
   if (loadingProject) return (
@@ -383,6 +397,146 @@ export default function ProjectDetailPage() {
         isOpen={openHistory}
         onClose={() => setOpenHistory(false)}
       />
+
+      {/* ── ARIA Web Intelligence Section ── */}
+      <div className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-xs">
+        <div className="px-6 py-4 border-b border-[#E2E8F0] bg-[#F8FAFC] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="bg-violet-100 p-1.5 rounded-lg">
+              <Globe className="h-4 w-4 text-violet-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-[#0F172A] text-[16px]">Web Intelligence</h3>
+              <p className="text-[12px] text-[#64748B]">External signals — news, government notices, contractor disputes</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {webIntel && (
+              <button
+                onClick={() => fetchWebIntelligence(true)}
+                disabled={webIntelLoading}
+                className="text-[13px] font-medium text-violet-600 hover:text-violet-800 border border-violet-200 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+              >
+                Force Search
+              </button>
+            )}
+            <button
+              onClick={() => fetchWebIntelligence(false)}
+              disabled={webIntelLoading}
+              className="text-[13px] font-medium text-[#FFFFFF] bg-violet-600 hover:bg-violet-700 px-3 py-1.5 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {webIntelLoading ? (
+                <>
+                  <div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" />
+                  Searching…
+                </>
+              ) : webIntel ? 'Refresh' : 'Run Web Search'}
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* Initial state */}
+          {!webIntel && !webIntelLoading && !webIntelError && (
+            <div className="text-center py-8 text-[#94A3B8]">
+              <Globe className="h-10 w-10 mx-auto mb-3 text-[#CBD5E1]" />
+              <p className="text-[14px] font-medium text-[#64748B]">Web Intelligence not yet run</p>
+              <p className="text-[13px] mt-1">Click "Run Web Search" to search for external signals about this project.</p>
+              <p className="text-[12px] mt-1 text-[#94A3B8]">Only runs automatically for HIGH/CRITICAL risk projects. Use "Force Search" to run regardless of risk level.</p>
+            </div>
+          )}
+
+          {/* Error state */}
+          {webIntelError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-[13px]">
+              <strong>Error:</strong> {webIntelError}
+            </div>
+          )}
+
+          {/* Results */}
+          {webIntel && !webIntelLoading && (
+            <div className="space-y-4">
+              {/* Metadata row */}
+              <div className="flex items-center gap-3 flex-wrap text-[13px]">
+                <span className={`px-2.5 py-1 rounded-full font-medium text-[12px] ${webIntel.triggered ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                  {webIntel.triggered ? '✓ Triggered' : '⊘ Not triggered'}
+                </span>
+                <span className="text-[#64748B]">{webIntel.trigger_reason}</span>
+                {webIntel.topics_searched.length > 0 && (
+                  <span className="text-[#94A3B8]">Topics: {webIntel.topics_searched.join(' • ')}</span>
+                )}
+              </div>
+
+              {/* Warnings */}
+              {webIntel.warnings.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-amber-700 text-[12px]">
+                  {webIntel.warnings.join('; ')}
+                </div>
+              )}
+
+              {/* No evidence */}
+              {webIntel.triggered && webIntel.evidence.length === 0 && (
+                <div className="text-center py-6 text-[#64748B] text-[13px]">
+                  No relevant external signals found for this project.
+                </div>
+              )}
+
+              {/* Evidence cards */}
+              {webIntel.evidence.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-[13px] font-medium text-[#0F172A]">{webIntel.evidence_count} external signal{webIntel.evidence_count !== 1 ? 's' : ''} found</p>
+                  {webIntel.evidence.map(ev => (
+                    <div key={ev.evidence_id} className="border border-[#E2E8F0] rounded-xl p-4 bg-white hover:border-violet-200 transition">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <a
+                            href={ev.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[14px] font-semibold text-[#0F172A] hover:text-violet-700 transition line-clamp-1"
+                          >
+                            {ev.title || ev.source}
+                          </a>
+                          <p className="text-[12px] text-[#64748B] mt-0.5">{ev.source} {ev.publication_date ? `· ${ev.publication_date}` : ''}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className={`text-[11px] font-medium px-2 py-0.5 rounded border ${
+                            ev.source_quality === 'HIGH' ? 'bg-green-100 text-green-700 border-green-200' :
+                            ev.source_quality === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                            ev.source_quality === 'LOW' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                            'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}>
+                            {ev.source_quality}
+                          </span>
+                          <span className="text-[11px] text-[#94A3B8] capitalize">{ev.topic}</span>
+                        </div>
+                      </div>
+                      <p className="text-[13px] text-[#334155] leading-relaxed">{ev.finding}</p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-[11px] text-[#94A3B8]">
+                          Relevance: {(ev.project_relevance * 100).toFixed(0)}% · {ev.trust_tier.replace('_', ' ')}
+                        </span>
+                        <a
+                          href={ev.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[12px] text-violet-600 hover:text-violet-800 font-medium"
+                        >
+                          View source ↗
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-[11px] text-[#94A3B8] text-right">
+                Searched: {new Date(webIntel.searched_at).toLocaleString()}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

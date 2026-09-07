@@ -3,7 +3,9 @@
  * All API calls go through this module. Base URL is read from VITE_API_BASE_URL.
  */
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+// Dynamic resolution: if VITE_API_BASE_URL is not set, use current hostname on port 8000
+const DEFAULT_HOST = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? `http://${DEFAULT_HOST}:8000`;
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`;
@@ -183,6 +185,10 @@ export interface ProjectsResponse {
 
 export interface DashboardSummary {
   total_projects: number;
+  latest_edition_projects?: number;
+  latest_edition_label?: string;
+  latest_edition_agencies?: number;
+  latest_edition_states?: number;
   overrun_count: number;
   overrun_percentage: number;
   high_risk_projects: number;

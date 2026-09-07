@@ -71,6 +71,13 @@ class Settings:
         os.getenv("ANOMALY_CONTAMINATION", "0.05")
     )
 
+    # ── ARIA / LLM / Web Intelligence Keys (all optional) ─────────────────────
+    groq_api_key: str | None = os.getenv("GROQ_API_KEY") or None
+    groq_model: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+    gemini_api_key: str | None = os.getenv("GEMINI_API_KEY") or None
+    tavily_api_key: str | None = os.getenv("TAVILY_API_KEY") or None
+
+
     def describe(self) -> dict:
         return {
             "app_name": self.app_name,

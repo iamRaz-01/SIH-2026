@@ -31,7 +31,7 @@ if str(_BACKEND_DIR) not in sys.path:
 
 from config import get_settings
 from services import dataset_service, ml_service, anomaly_service, network_service, benchmark_service
-from api import projects, dashboard, predict, anomalies, risk, benchmarks, network, alerts
+from api import projects, dashboard, predict, anomalies, risk, benchmarks, network, alerts, web_intelligence, analyze
 
 logging.basicConfig(
     level=logging.INFO,
@@ -108,7 +108,7 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,6 +123,8 @@ app.include_router(risk.router)
 app.include_router(benchmarks.router)
 app.include_router(network.router)
 app.include_router(alerts.router)
+app.include_router(web_intelligence.router)  # ARIA: Web Intelligence Agent
+app.include_router(analyze.router)           # ARIA: Conversational Coordinator Q&A
 
 
 @app.get("/api/health", tags=["Health"])
@@ -156,6 +158,12 @@ def health():
         "ml_model": ml_status,
         "anomaly_detector": an_status,
         "project_network": net_status,
+        "aria": {
+            "groq_configured": bool(settings.groq_api_key),
+            "gemini_configured": bool(settings.gemini_api_key),
+            "tavily_configured": bool(settings.tavily_api_key),
+            "web_intelligence": "available" if settings.tavily_api_key else "degraded (no TAVILY_API_KEY)",
+        },
     }
 
 

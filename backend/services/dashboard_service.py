@@ -79,8 +79,29 @@ def get_summary(df: pd.DataFrame) -> dict:
         if "time_overrun_months" in df.columns else None, 1
     )
 
+    # ── Latest Edition (e.g. July 2026 snapshot) metrics ──
+    latest_edition_projects = total
+    latest_edition_label = "Latest Edition"
+    latest_edition_agencies = df["agency"].nunique() if "agency" in df.columns else 0
+    latest_edition_states = df["state"].nunique() if "state" in df.columns else 0
+
+    if "edition_dt" in df.columns and df["edition_dt"].notna().any():
+        max_dt = df["edition_dt"].max()
+        latest_df = df[df["edition_dt"] == max_dt]
+        latest_edition_projects = len(latest_df)
+        try:
+            latest_edition_label = max_dt.strftime("%B %Y Edition")
+        except Exception:
+            latest_edition_label = f"{str(latest_df['edition'].iloc[0])} Edition"
+        latest_edition_agencies = latest_df["agency"].nunique() if "agency" in latest_df.columns else 0
+        latest_edition_states = latest_df["state"].nunique() if "state" in latest_df.columns else 0
+
     return {
         "total_projects": total,
+        "latest_edition_projects": latest_edition_projects,
+        "latest_edition_label": latest_edition_label,
+        "latest_edition_agencies": latest_edition_agencies,
+        "latest_edition_states": latest_edition_states,
         "overrun_count": overrun_count,
         "overrun_percentage": round(overrun_count / max(total, 1) * 100, 1),
         "high_risk_projects": high_risk,

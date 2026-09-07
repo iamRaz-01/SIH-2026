@@ -133,9 +133,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard
             icon={Building2}
-            label="Total Projects"
-            value={summary.total_projects.toLocaleString()}
-            sub={`${summary.agencies_count} agencies · ${summary.states_count} states`}
+            label={summary.latest_edition_label ? `Total Projects (${summary.latest_edition_label.replace(' Edition', '')})` : 'Total Projects'}
+            value={(summary.latest_edition_projects ?? summary.total_projects).toLocaleString()}
+            sub={`${(summary.latest_edition_agencies ?? summary.agencies_count)} agencies · ${(summary.latest_edition_states ?? summary.states_count)} states`}
             iconBg="bg-[#EFF6FF]"
             iconColor="text-[#2563EB]"
             color="text-[#0F172A]"

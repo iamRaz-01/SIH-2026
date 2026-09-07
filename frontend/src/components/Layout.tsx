@@ -21,6 +21,8 @@ import { getAlerts, type Alert } from '../api/client'
 import { useWatchlist } from '../context/WatchlistContext'
 import GlobalSearchModal from './GlobalSearchModal'
 import WatchlistDrawer from './WatchlistDrawer'
+import ARIAChat from './ARIAChat'
+import { ARIAContext } from './ARIAContext'
 
 const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -43,6 +45,15 @@ export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { watchedItems } = useWatchlist()
+
+  // ── ARIA context: detect current project from URL ─────────────────────────
+  const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/)
+  const ariaProjectId = projectMatch ? projectMatch[1] : null
+  // projectName will be filled in by ProjectDetailPage via document title, or left null
+  const ariaProjectName = ariaProjectId
+    ? (document.title.includes('—') ? document.title.split('—')[0].trim() : null)
+    : null
+  const ariaMode = ariaProjectId ? 'project' : 'portfolio'
 
   // Fetch top 5 genuine alerts
   useEffect(() => {
@@ -100,6 +111,7 @@ export default function Layout() {
   }
 
   return (
+    <ARIAContext.Provider value={{ mode: ariaMode as 'portfolio' | 'project', projectId: ariaProjectId, projectName: ariaProjectName }}>
     <div className="flex min-h-screen bg-[#F8FAFC] text-[#0F172A]">
       {/* ── Sidebar (Clean White #FFFFFF, Border #E2E8F0, Active #0F172A) ── */}
       <aside className="w-64 shrink-0 border-r border-[#E2E8F0] bg-[#FFFFFF] flex flex-col">
@@ -324,6 +336,10 @@ export default function Layout() {
 
       {/* Watchlist Drawer */}
       <WatchlistDrawer isOpen={openWatchlist} onClose={() => setOpenWatchlist(false)} />
+
+      {/* ARIA — AI Risk & Intelligence Assistant (floating chat widget) */}
+      <ARIAChat />
     </div>
+    </ARIAContext.Provider>
   )
 }
